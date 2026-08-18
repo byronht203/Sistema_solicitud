@@ -15,6 +15,7 @@ class Solicitud extends Model
     protected $fillable = [
         'empresa_id',
         'solicitante_id',
+        'tipo_solicitud',
         'jefe_id',
         'contabilidad_id',
         'proveedor_id',

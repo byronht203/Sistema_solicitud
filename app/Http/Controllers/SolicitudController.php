@@ -66,6 +66,7 @@ class SolicitudController extends Controller
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
             'solicitante_id' => 'required|exists:usuarios,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
             'jefe_id' => 'nullable|exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
@@ -87,6 +88,7 @@ class SolicitudController extends Controller
         $solicitud = Solicitud::create([
             'empresa_id' => $validated['empresa_id'],
             'solicitante_id' => $validated['solicitante_id'],
+            'tipo_solicitud' => $validated['tipo_solicitud'] ?? 'Pago a Proveedor',
             'jefe_id' => $validated['jefe_id'] ?? null,
             'contabilidad_id' => $validated['contabilidad_id'] ?? null,
             'proveedor_id' => $validated['proveedor_id'],
@@ -110,6 +112,7 @@ class SolicitudController extends Controller
     {
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
             'solicitante_id' => 'required|exists:usuarios,id',
             'jefe_id' => 'nullable|exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',

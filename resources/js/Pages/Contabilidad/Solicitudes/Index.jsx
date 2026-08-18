@@ -369,16 +369,18 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                                     return (
                                         <tr key={solicitud.id} className="hover:bg-slate-800/40 transition">
                                             <td className="px-4 py-4 font-medium">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className="font-extrabold text-emerald-400">#{solicitud.id}</span>
                                                     <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[11px] font-bold border border-slate-700">
                                                         {solicitud.empresa?.nombre}
                                                     </span>
-                                                    {isCajaChica && (
-                                                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-cyan-500/30">
-                                                            Caja Chica
-                                                        </span>
-                                                    )}
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                                        solicitud.tipo_solicitud === 'Caja Chica'
+                                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                                    }`}>
+                                                        {solicitud.tipo_solicitud || 'Pago Proveedor'}
+                                                    </span>
                                                 </div>
                                                 <div className="text-[11px] text-slate-400 mt-1 line-clamp-2 max-w-xs" title={solicitud.motivo_descripcion}>
                                                     {solicitud.motivo_descripcion}
@@ -415,12 +417,23 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                                                 <div className="font-bold text-white">
                                                     {solicitud.proveedor?.nombre_razon_social}
                                                 </div>
+                                                {solicitud.proveedor?.descripcion && (
+                                                    <div className="text-[10px] text-slate-400 italic line-clamp-1">
+                                                        {solicitud.proveedor.descripcion}
+                                                    </div>
+                                                )}
                                                 <div className="text-[11px] text-emerald-400 font-mono mt-0.5">
-                                                    {solicitud.proveedor?.banco} - N° {solicitud.proveedor?.numero_cuenta}
+                                                    {solicitud.proveedor?.numero_cuenta ? (
+                                                        `${solicitud.proveedor?.banco} - N° ${solicitud.proveedor?.numero_cuenta}`
+                                                    ) : (
+                                                        <span className="text-slate-400 italic text-[10px]">💵 Pago Efectivo / Presencial</span>
+                                                    )}
                                                 </div>
-                                                <div className="text-[10px] text-slate-400">
-                                                    Titular: {solicitud.proveedor?.nombre_titular_cuenta}
-                                                </div>
+                                                {solicitud.proveedor?.nombre_titular_cuenta && (
+                                                    <div className="text-[10px] text-slate-400">
+                                                        Titular: {solicitud.proveedor?.nombre_titular_cuenta}
+                                                    </div>
+                                                )}
                                             </td>
 
                                             <td className="px-4 py-4 whitespace-nowrap">
@@ -734,11 +747,20 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                             </div>
 
                             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-                                <h4 className="font-bold text-emerald-400 uppercase text-[10px] tracking-wider mb-2">Datos Bancarios del Proveedor</h4>
+                                <h4 className="font-bold text-emerald-400 uppercase text-[10px] tracking-wider mb-2">Proveedor / Beneficiario</h4>
                                 <p className="text-white font-bold">{selectedSolicitud.proveedor?.nombre_razon_social}</p>
-                                <p className="text-emerald-400 font-bold">{selectedSolicitud.proveedor?.banco}</p>
-                                <p className="text-slate-300 font-mono mt-0.5">N° Cuenta: {selectedSolicitud.proveedor?.numero_cuenta}</p>
-                                <p className="text-slate-400">Titular: {selectedSolicitud.proveedor?.nombre_titular_cuenta}</p>
+                                {selectedSolicitud.proveedor?.descripcion && (
+                                    <p className="text-slate-400 italic text-[11px] mt-0.5">{selectedSolicitud.proveedor.descripcion}</p>
+                                )}
+                                {selectedSolicitud.proveedor?.numero_cuenta ? (
+                                    <>
+                                        <p className="text-emerald-400 font-bold mt-1">{selectedSolicitud.proveedor?.banco}</p>
+                                        <p className="text-slate-300 font-mono text-[11px]">N° Cuenta: {selectedSolicitud.proveedor?.numero_cuenta}</p>
+                                        <p className="text-slate-400 text-[11px]">Titular: {selectedSolicitud.proveedor?.nombre_titular_cuenta}</p>
+                                    </>
+                                ) : (
+                                    <p className="text-amber-400/90 italic text-[11px] mt-1">💵 Pago en Efectivo / Presencial (Sin cuenta bancaria)</p>
+                                )}
                             </div>
                         </div>
 

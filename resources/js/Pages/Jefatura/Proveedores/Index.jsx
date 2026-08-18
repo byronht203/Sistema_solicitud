@@ -88,38 +88,55 @@ export default function Index({ proveedores, filters = {} }) {
                                 {prov.nombre_razon_social}
                             </h3>
 
+                            {prov.descripcion && (
+                                <p className="text-xs text-slate-400 mb-2 line-clamp-2 italic">
+                                    "{prov.descripcion}"
+                                </p>
+                            )}
+
                             {/* Bank Card Info */}
                             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 my-3 text-xs space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Banco:</span>
-                                    <span className="font-bold text-emerald-400">{prov.banco}</span>
-                                </div>
+                                {prov.numero_cuenta ? (
+                                    <>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Banco:</span>
+                                            <span className="font-bold text-emerald-400">{prov.banco || 'N/A'}</span>
+                                        </div>
 
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Tipo Cuenta:</span>
-                                    <span className="font-semibold text-slate-300">{prov.tipo_cuenta}</span>
-                                </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Tipo Cuenta:</span>
+                                            <span className="font-semibold text-slate-300">{prov.tipo_cuenta || 'N/A'}</span>
+                                        </div>
 
-                                <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                                    <span className="text-slate-400">N° Cuenta:</span>
-                                    <div className="flex items-center gap-1">
-                                        <span className="font-mono font-extrabold text-white text-xs">{prov.numero_cuenta}</span>
-                                        <button
-                                            onClick={() => handleCopy(prov.numero_cuenta, `jefe_prov_${prov.id}`)}
-                                            className="p-1 text-slate-400 hover:text-indigo-400 transition"
-                                            title="Copiar N° de Cuenta"
-                                        >
-                                            {copiedField === `jefe_prov_${prov.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                        </button>
+                                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                                            <span className="text-slate-400">N° Cuenta:</span>
+                                            <div className="flex items-center gap-1">
+                                                <span className="font-mono font-extrabold text-white text-xs">{prov.numero_cuenta}</span>
+                                                <button
+                                                    onClick={() => handleCopy(prov.numero_cuenta, `jefe_prov_${prov.id}`)}
+                                                    className="p-1 text-slate-400 hover:text-indigo-400 transition"
+                                                    title="Copiar N° de Cuenta"
+                                                >
+                                                    {copiedField === `jefe_prov_${prov.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {prov.nombre_titular_cuenta && (
+                                            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                                                <span className="text-slate-400">Titular:</span>
+                                                <span className="font-bold text-slate-200 truncate max-w-[140px]" title={prov.nombre_titular_cuenta}>
+                                                    {prov.nombre_titular_cuenta}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="py-2 text-center text-slate-400 italic">
+                                        💵 Pago en Efectivo / Presencial<br/>
+                                        <span className="text-[10px] text-slate-500">(Sin cuenta bancaria requerida)</span>
                                     </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                                    <span className="text-slate-400">Titular:</span>
-                                    <span className="font-bold text-slate-200 truncate max-w-[140px]" title={prov.nombre_titular_cuenta}>
-                                        {prov.nombre_titular_cuenta}
-                                    </span>
-                                </div>
+                                )}
                             </div>
                         </div>
 

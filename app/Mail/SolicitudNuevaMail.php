@@ -87,13 +87,14 @@ class SolicitudNuevaMail extends Mailable
     {
         $empresaNombre = $this->solicitud->empresa ? $this->solicitud->empresa->nombre : 'Empresa';
         $montoFormateado = number_format($this->solicitud->monto, 2) . ' ' . $this->solicitud->moneda;
+        $tagTipo = ($this->solicitud->tipo_solicitud === 'Caja Chica') ? 'CAJA CHICA' : 'PAGO A PROVEEDOR';
 
         return new Envelope(
             from: new Address(config('mail.from.address', 'sistemas@fralak.com.bo'), config('mail.from.name', 'Sistema de Solicitudes')),
             replyTo: [
                 new Address($this->correoReplyTo, $this->solicitud->solicitante ? $this->solicitud->solicitante->nombre_completo : 'Solicitante')
             ],
-            subject: "[NUEVA SOLICITUD DE PAGO #{$this->solicitud->id}] - {$empresaNombre} - {$montoFormateado}",
+            subject: "[{$tagTipo} #{$this->solicitud->id}] - {$empresaNombre} - {$montoFormateado}",
         );
     }
 
@@ -125,6 +126,14 @@ class SolicitudNuevaMail extends Mailable
      */
     public function attachments(): array
     {
+        if ($this->solicitud->archivo_respaldo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->solicitud->archivo_respaldo_path)) {
+            $fullPath = storage_path('app/public/' . $this->solicitud->archivo_respaldo_path);
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+            return [
+                \Illuminate\Mail\Mailables\Attachment::fromPath($fullPath)
+                    ->as("Justificante_Solicitud_{$this->solicitud->id}.{$ext}")
+            ];
+        }
         return [];
     }
 

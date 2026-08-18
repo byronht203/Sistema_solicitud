@@ -23,6 +23,7 @@ export default function ProveedoresIndex({ proveedores, filters }) {
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre_razon_social: '',
+        descripcion: '',
         nit_ci: '',
         banco: '',
         tipo_cuenta: 'Caja de Ahorro',
@@ -42,6 +43,15 @@ export default function ProveedoresIndex({ proveedores, filters }) {
 
     const openCreateModal = () => {
         reset();
+        setData({
+            nombre_razon_social: '',
+            descripcion: '',
+            nit_ci: '',
+            banco: '',
+            tipo_cuenta: 'Caja de Ahorro',
+            numero_cuenta: '',
+            nombre_titular_cuenta: '',
+        });
         setCreateModalOpen(true);
     };
 
@@ -58,12 +68,13 @@ export default function ProveedoresIndex({ proveedores, filters }) {
     const openEditModal = (p) => {
         setActiveProveedor(p);
         setData({
-            nombre_razon_social: p.nombre_razon_social,
-            nit_ci: p.nit_ci,
-            banco: p.banco,
-            tipo_cuenta: p.tipo_cuenta,
-            numero_cuenta: p.numero_cuenta,
-            nombre_titular_cuenta: p.nombre_titular_cuenta,
+            nombre_razon_social: p.nombre_razon_social || '',
+            descripcion: p.descripcion || '',
+            nit_ci: p.nit_ci || '',
+            banco: p.banco || '',
+            tipo_cuenta: p.tipo_cuenta || 'Caja de Ahorro',
+            numero_cuenta: p.numero_cuenta || '',
+            nombre_titular_cuenta: p.nombre_titular_cuenta || '',
         });
         setEditModalOpen(true);
     };
@@ -94,7 +105,7 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                         Catálogo de Proveedores
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
-                        Gestión de razones sociales, NIT/CI y datos bancarios para transferencias
+                        Gestión de razones sociales, descripción de rubros y datos bancarios o modalidades en efectivo
                     </p>
                 </div>
 
@@ -107,24 +118,25 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                 </button>
             </div>
 
-            {/* Filter Search */}
+            {/* Filters */}
             <form onSubmit={handleFilterSubmit} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 mb-6 shadow-xl">
                 <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
                         <input
                             type="text"
-                            placeholder="Buscar por razón social, NIT, banco, nro de cuenta o titular..."
+                            placeholder="Buscar por razón social, descripción, NIT o cuenta..."
                             value={searchState}
                             onChange={(e) => setSearchState(e.target.value)}
                             className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                     </div>
+
                     <div className="flex gap-2">
-                        <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-4 rounded-xl transition">
+                        <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-5 rounded-xl transition">
                             Buscar
                         </button>
-                        <button type="button" onClick={handleResetFilters} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-3 rounded-xl transition">
+                        <button type="button" onClick={handleResetFilters} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded-xl transition">
                             Limpiar
                         </button>
                     </div>
@@ -137,7 +149,8 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                     <table className="w-full text-left text-xs text-slate-300">
                         <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[11px] border-b border-slate-800">
                             <tr>
-                                <th className="px-4 py-3.5">Razón Social / NIT</th>
+                                <th className="px-4 py-3.5">Razón Social & Descripción</th>
+                                <th className="px-4 py-3.5">NIT / CI</th>
                                 <th className="px-4 py-3.5">Entidad Bancaria</th>
                                 <th className="px-4 py-3.5">Número de Cuenta</th>
                                 <th className="px-4 py-3.5">Titular de Cuenta</th>
@@ -148,7 +161,7 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                         <tbody className="divide-y divide-slate-800/60">
                             {proveedores.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-10 text-slate-500">
+                                    <td colSpan="7" className="text-center py-10 text-slate-500">
                                         No hay proveedores registrados aún.
                                     </td>
                                 </tr>
@@ -157,22 +170,39 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                                     <tr key={p.id} className="hover:bg-slate-800/40 transition">
                                         <td className="px-4 py-3.5">
                                             <div className="font-bold text-white text-sm">{p.nombre_razon_social}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">NIT/CI: {p.nit_ci}</div>
-                                        </td>
-                                        <td className="px-4 py-3.5 font-semibold text-slate-200">
-                                            <div className="flex items-center gap-1.5">
-                                                <Building className="w-3.5 h-3.5 text-indigo-400" />
-                                                {p.banco}
-                                            </div>
+                                            {p.descripcion && (
+                                                <div className="text-[11px] text-slate-400 mt-0.5 italic">"{p.descripcion}"</div>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3.5">
-                                            <div className="font-mono font-bold text-indigo-300">{p.numero_cuenta}</div>
-                                            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                                                {p.tipo_cuenta}
-                                            </span>
+                                            <div className="text-[11px] text-slate-300 font-mono">
+                                                {p.nit_ci ? p.nit_ci : <span className="text-slate-500 italic">Sin NIT</span>}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3.5 font-semibold text-slate-200">
+                                            {p.banco ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Building className="w-3.5 h-3.5 text-indigo-400" />
+                                                    {p.banco}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-500 italic text-[11px]">💵 Pago Efectivo</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            {p.numero_cuenta ? (
+                                                <>
+                                                    <div className="font-mono font-bold text-indigo-300">{p.numero_cuenta}</div>
+                                                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                                        {p.tipo_cuenta || 'Cuenta'}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-slate-500 italic text-[11px]">Sin cuenta</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3.5 text-slate-200 font-medium">
-                                            {p.nombre_titular_cuenta}
+                                            {p.nombre_titular_cuenta || '—'}
                                         </td>
                                         <td className="px-4 py-3.5 text-slate-400 text-[11px]">
                                             {p.creador?.nombre_completo || 'Sistema'}
@@ -227,7 +257,7 @@ export default function ProveedoresIndex({ proveedores, filters }) {
             {/* CREATE / EDIT MODAL */}
             {(createModalOpen || editModalOpen) && (
                 <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                 <Truck className="w-5 h-5 text-indigo-400" />
@@ -239,81 +269,100 @@ export default function ProveedoresIndex({ proveedores, filters }) {
                         </div>
 
                         <form onSubmit={createModalOpen ? handleCreateSubmit : handleEditSubmit} className="space-y-4 text-xs">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Nombre o Razón Social</label>
-                                    <input
-                                        type="text"
-                                        value={data.nombre_razon_social}
-                                        onChange={(e) => setData('nombre_razon_social', e.target.value)}
-                                        placeholder="Ej. TechSolutions SRL"
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">NIT / C.I.</label>
-                                    <input
-                                        type="text"
-                                        value={data.nit_ci}
-                                        onChange={(e) => setData('nit_ci', e.target.value)}
-                                        placeholder="1029384019"
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Entidad Bancaria</label>
-                                    <input
-                                        type="text"
-                                        value={data.banco}
-                                        onChange={(e) => setData('banco', e.target.value)}
-                                        placeholder="Ej. Banco Nacional de Bolivia"
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Tipo de Cuenta</label>
-                                    <select
-                                        value={data.tipo_cuenta}
-                                        onChange={(e) => setData('tipo_cuenta', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-semibold"
-                                    >
-                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
-                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
-                                        <option value="Otro">Otro</option>
-                                    </select>
-                                </div>
-                            </div>
-
                             <div>
-                                <label className="block font-semibold text-slate-300 uppercase mb-1">Número de Cuenta Bancaria</label>
+                                <label className="block font-semibold text-slate-300 uppercase mb-1">
+                                    Nombre o Razón Social <span className="text-rose-400">*</span>
+                                </label>
                                 <input
                                     type="text"
-                                    value={data.numero_cuenta}
-                                    onChange={(e) => setData('numero_cuenta', e.target.value)}
-                                    placeholder="1000-2938472-01"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block font-semibold text-slate-300 uppercase mb-1">Nombre Titular de la Cuenta</label>
-                                <input
-                                    type="text"
-                                    value={data.nombre_titular_cuenta}
-                                    onChange={(e) => setData('nombre_titular_cuenta', e.target.value)}
-                                    placeholder="Nombre completo o razón social en el banco"
+                                    value={data.nombre_razon_social}
+                                    onChange={(e) => setData('nombre_razon_social', e.target.value)}
+                                    placeholder="Ej. Librería Central / TechSolutions SRL"
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
                                     required
                                 />
+                                {errors.nombre_razon_social && <p className="text-rose-400 mt-1">{errors.nombre_razon_social}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 uppercase mb-1">
+                                    Descripción / Rubro / Observaciones (Opcional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.descripcion}
+                                    onChange={(e) => setData('descripcion', e.target.value)}
+                                    placeholder="Ej. Gastos menores, compras en efectivo, servicios de mantenimiento..."
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
+                                />
+                                {errors.descripcion && <p className="text-rose-400 mt-1">{errors.descripcion}</p>}
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Datos Bancarios (Opcional si es pago en efectivo)
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-semibold text-slate-300 mb-1">NIT / C.I.</label>
+                                        <input
+                                            type="text"
+                                            value={data.nit_ci}
+                                            onChange={(e) => setData('nit_ci', e.target.value)}
+                                            placeholder="Opcional"
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-semibold text-slate-300 mb-1">Entidad Bancaria</label>
+                                        <input
+                                            type="text"
+                                            value={data.banco}
+                                            onChange={(e) => setData('banco', e.target.value)}
+                                            placeholder="Ej. Banco Nacional de Bolivia"
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-semibold text-slate-300 mb-1">Tipo de Cuenta</label>
+                                        <select
+                                            value={data.tipo_cuenta}
+                                            onChange={(e) => setData('tipo_cuenta', e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white font-semibold"
+                                        >
+                                            <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                            <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-semibold text-slate-300 mb-1">Número de Cuenta Bancaria</label>
+                                        <input
+                                            type="text"
+                                            value={data.numero_cuenta}
+                                            onChange={(e) => setData('numero_cuenta', e.target.value)}
+                                            placeholder="Opcional"
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Nombre Titular de la Cuenta</label>
+                                    <input
+                                        type="text"
+                                        value={data.nombre_titular_cuenta}
+                                        onChange={(e) => setData('nombre_titular_cuenta', e.target.value)}
+                                        placeholder="Nombre del titular en el banco"
+                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                                    />
+                                </div>
                             </div>
 
                             <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">

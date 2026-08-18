@@ -16,6 +16,7 @@ class ProveedorController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nombre_razon_social', 'like', "%{$search}%")
+                  ->orWhere('descripcion', 'like', "%{$search}%")
                   ->orWhere('nit_ci', 'like', "%{$search}%")
                   ->orWhere('banco', 'like', "%{$search}%")
                   ->orWhere('numero_cuenta', 'like', "%{$search}%")
@@ -35,11 +36,12 @@ class ProveedorController extends Controller
     {
         $validated = $request->validate([
             'nombre_razon_social' => 'required|string|max:150',
-            'nit_ci' => 'required|string|max:50',
-            'banco' => 'required|string|max:100',
-            'tipo_cuenta' => 'required|in:Caja de Ahorro,Cuenta Corriente,Otro',
-            'numero_cuenta' => 'required|string|max:100',
-            'nombre_titular_cuenta' => 'required|string|max:150',
+            'descripcion' => 'nullable|string|max:255',
+            'nit_ci' => 'nullable|string|max:50',
+            'banco' => 'nullable|string|max:100',
+            'tipo_cuenta' => 'nullable|in:Caja de Ahorro,Cuenta Corriente,Otro',
+            'numero_cuenta' => 'nullable|string|max:100',
+            'nombre_titular_cuenta' => 'nullable|string|max:150',
         ]);
 
         $validated['creado_por_usuario_id'] = auth()->id();
@@ -53,11 +55,12 @@ class ProveedorController extends Controller
     {
         $validated = $request->validate([
             'nombre_razon_social' => 'required|string|max:150',
-            'nit_ci' => 'required|string|max:50',
-            'banco' => 'required|string|max:100',
-            'tipo_cuenta' => 'required|in:Caja de Ahorro,Cuenta Corriente,Otro',
-            'numero_cuenta' => 'required|string|max:100',
-            'nombre_titular_cuenta' => 'required|string|max:150',
+            'descripcion' => 'nullable|string|max:255',
+            'nit_ci' => 'nullable|string|max:50',
+            'banco' => 'nullable|string|max:100',
+            'tipo_cuenta' => 'nullable|in:Caja de Ahorro,Cuenta Corriente,Otro',
+            'numero_cuenta' => 'nullable|string|max:100',
+            'nombre_titular_cuenta' => 'nullable|string|max:150',
         ]);
 
         $proveedor->update($validated);

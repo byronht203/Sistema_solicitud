@@ -198,6 +198,14 @@
             <div class="info-card">
                 <div class="grid">
                     <div class="row">
+                        <div class="cell-label">Tipo de Solicitud:</div>
+                        <div class="cell-value">
+                            <span style="display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; background-color: {{ $solicitud->tipo_solicitud === 'Caja Chica' ? '#fef3c7' : '#e0e7ff' }}; color: {{ $solicitud->tipo_solicitud === 'Caja Chica' ? '#92400e' : '#3730a3' }};">
+                                {{ $solicitud->tipo_solicitud ?? 'Pago a Proveedor' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row">
                         <div class="cell-label">Empresa Beneficiaria:</div>
                         <div class="cell-value"><strong style="color: {{ $primaryColor }};">{{ $solicitud->empresa ? $solicitud->empresa->nombre : 'N/A' }}</strong></div>
                     </div>
@@ -211,11 +219,25 @@
                     </div>
                     <div class="row">
                         <div class="cell-label">Proveedor / Beneficiario:</div>
-                        <div class="cell-value">{{ $solicitud->proveedor ? $solicitud->proveedor->nombre_razon_social : 'N/A' }}</div>
+                        <div class="cell-value">
+                            <strong>{{ $solicitud->proveedor ? $solicitud->proveedor->nombre_razon_social : 'N/A' }}</strong>
+                            @if($solicitud->proveedor && $solicitud->proveedor->descripcion)
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">{{ $solicitud->proveedor->descripcion }}</div>
+                            @endif
+                        </div>
                     </div>
                     <div class="row">
                         <div class="cell-label">Banco & Cuenta:</div>
-                        <div class="cell-value">{{ $solicitud->proveedor ? $solicitud->proveedor->banco . ' - N° ' . $solicitud->proveedor->numero_cuenta : 'N/A' }}</div>
+                        <div class="cell-value">
+                            @if($solicitud->proveedor && $solicitud->proveedor->numero_cuenta)
+                                {{ $solicitud->proveedor->banco }} - {{ $solicitud->proveedor->tipo_cuenta ?? 'Cuenta' }} N° {{ $solicitud->proveedor->numero_cuenta }}
+                                @if($solicitud->proveedor->nombre_titular_cuenta)
+                                    <span style="color: #64748b; font-size: 12px;">({{ $solicitud->proveedor->nombre_titular_cuenta }})</span>
+                                @endif
+                            @else
+                                <em style="color: #64748b;">Pago en Efectivo / Presencial (Sin cuenta bancaria registrada)</em>
+                            @endif
+                        </div>
                     </div>
                     <div class="row">
                         <div class="cell-label">Tipo Documento:</div>
@@ -229,6 +251,14 @@
                         <div class="cell-label">Fecha Solicitud:</div>
                         <div class="cell-value">{{ \Carbon\Carbon::parse($solicitud->fecha_solicitud)->format('d/m/Y') }}</div>
                     </div>
+                    @if($solicitud->archivo_respaldo_path)
+                    <div class="row">
+                        <div class="cell-label">Justificante / Proforma:</div>
+                        <div class="cell-value" style="color: #16a34a; font-weight: bold;">
+                            📎 Documento de respaldo adjunto en este correo
+                        </div>
+                    </div>
+                    @endif
                     <div class="row">
                         <div class="cell-label" style="border-bottom: none;">Motivo / Descripción:</div>
                         <div class="cell-value" style="color: #334155; font-weight: normal; padding-top: 10px; border-bottom: none;">

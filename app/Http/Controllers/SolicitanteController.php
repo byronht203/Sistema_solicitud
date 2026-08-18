@@ -146,6 +146,7 @@ class SolicitanteController extends Controller
     {
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
             'jefe_id' => 'required|exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
@@ -167,6 +168,7 @@ class SolicitanteController extends Controller
         $solicitud = Solicitud::create([
             'empresa_id' => $validated['empresa_id'],
             'solicitante_id' => auth()->id(),
+            'tipo_solicitud' => $validated['tipo_solicitud'] ?? 'Pago a Proveedor',
             'jefe_id' => $validated['jefe_id'],
             'contabilidad_id' => $validated['contabilidad_id'] ?? null,
             'proveedor_id' => $validated['proveedor_id'],
@@ -183,7 +185,7 @@ class SolicitanteController extends Controller
 
         \App\Mail\SolicitudNuevaMail::notificarJefatura($solicitud);
 
-        return redirect()->back()->with('success', '¡Solicitud de pago registrada exitosamente! Ha ingresado a revisión por tu jefatura.');
+        return redirect()->back()->with('success', '¡Solicitud registrada exitosamente! Ha ingresado a revisión por tu jefatura.');
     }
 
     /**
@@ -193,6 +195,7 @@ class SolicitanteController extends Controller
     {
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
             'jefe_id' => 'required|exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',

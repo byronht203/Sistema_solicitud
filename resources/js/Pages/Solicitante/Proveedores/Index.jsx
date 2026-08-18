@@ -30,6 +30,7 @@ export default function Index({ proveedores, filters = {} }) {
         errors: createErrors
     } = useForm({
         nombre_razon_social: '',
+        descripcion: '',
         nit_ci: '',
         banco: '',
         tipo_cuenta: 'Caja de Ahorro',
@@ -46,6 +47,7 @@ export default function Index({ proveedores, filters = {} }) {
         errors: editErrors
     } = useForm({
         nombre_razon_social: '',
+        descripcion: '',
         nit_ci: '',
         banco: '',
         tipo_cuenta: 'Caja de Ahorro',
@@ -78,6 +80,7 @@ export default function Index({ proveedores, filters = {} }) {
         setActiveProveedor(prov);
         setEditData({
             nombre_razon_social: prov.nombre_razon_social || '',
+            descripcion: prov.descripcion || '',
             nit_ci: prov.nit_ci || '',
             banco: prov.banco || '',
             tipo_cuenta: prov.tipo_cuenta || 'Caja de Ahorro',
@@ -170,43 +173,59 @@ export default function Index({ proveedores, filters = {} }) {
                                         <span>Editar</span>
                                     </button>
                                 </div>
-
                                 <h3 className="text-base font-extrabold text-white mb-1 line-clamp-1" title={prov.nombre_razon_social}>
                                     {prov.nombre_razon_social}
                                 </h3>
 
+                                {prov.descripcion && (
+                                    <p className="text-xs text-slate-400 mb-2 line-clamp-2 italic">
+                                        "{prov.descripcion}"
+                                    </p>
+                                )}
+
                                 {/* Bank Card Info */}
                                 <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 my-3 text-xs space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-slate-400">Banco:</span>
-                                        <span className="font-bold text-emerald-400">{prov.banco}</span>
-                                    </div>
+                                    {prov.numero_cuenta ? (
+                                        <>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-400">Banco:</span>
+                                                <span className="font-bold text-emerald-400">{prov.banco || 'N/A'}</span>
+                                            </div>
 
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-slate-400">Tipo Cuenta:</span>
-                                        <span className="font-semibold text-slate-300">{prov.tipo_cuenta}</span>
-                                    </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-400">Tipo Cuenta:</span>
+                                                <span className="font-semibold text-slate-300">{prov.tipo_cuenta || 'N/A'}</span>
+                                            </div>
 
-                                    <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                                        <span className="text-slate-400">N° Cuenta:</span>
-                                        <div className="flex items-center gap-1">
-                                            <span className="font-mono font-extrabold text-white text-xs">{prov.numero_cuenta}</span>
-                                            <button
-                                                onClick={() => handleCopy(prov.numero_cuenta, `solic_prov_${prov.id}`)}
-                                                className="p-1 text-slate-400 hover:text-cyan-400 transition"
-                                                title="Copiar N° de Cuenta"
-                                            >
-                                                {copiedField === `solic_prov_${prov.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                            </button>
+                                            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                                                <span className="text-slate-400">N° Cuenta:</span>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-mono font-extrabold text-white text-xs">{prov.numero_cuenta}</span>
+                                                    <button
+                                                        onClick={() => handleCopy(prov.numero_cuenta, `solic_prov_${prov.id}`)}
+                                                        className="p-1 text-slate-400 hover:text-cyan-400 transition"
+                                                        title="Copiar N° de Cuenta"
+                                                    >
+                                                        {copiedField === `solic_prov_${prov.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {prov.nombre_titular_cuenta && (
+                                                <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                                                    <span className="text-slate-400">Titular:</span>
+                                                    <span className="font-bold text-slate-200 truncate max-w-[140px]" title={prov.nombre_titular_cuenta}>
+                                                        {prov.nombre_titular_cuenta}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="py-2 text-center text-slate-400 italic">
+                                            💵 Pago en Efectivo / Presencial<br/>
+                                            <span className="text-[10px] text-slate-500">(Sin cuenta bancaria requerida)</span>
                                         </div>
-                                    </div>
-
-                                    <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                                        <span className="text-slate-400">Titular:</span>
-                                        <span className="font-bold text-slate-200 truncate max-w-[140px]" title={prov.nombre_titular_cuenta}>
-                                            {prov.nombre_titular_cuenta}
-                                        </span>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -221,10 +240,10 @@ export default function Index({ proveedores, filters = {} }) {
                 )}
             </div>
 
-            {/* Modal: Crear Proveedor Nuevo */}
+            {/* Modal: Registrar Proveedor */}
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                         <button
                             onClick={() => setShowCreateModal(false)}
                             className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -233,8 +252,8 @@ export default function Index({ proveedores, filters = {} }) {
                         </button>
 
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Truck className="w-5 h-5 text-cyan-400" />
-                            <span>Registrar Nuevo Proveedor</span>
+                            <Plus className="w-5 h-5 text-cyan-400" />
+                            <span>Registrar Nuevo Proveedor / Beneficiario</span>
                         </h3>
 
                         <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -245,6 +264,7 @@ export default function Index({ proveedores, filters = {} }) {
                                 <input
                                     type="text"
                                     required
+                                    placeholder="Ej: Librería Central / Compras Menores..."
                                     value={createData.nombre_razon_social}
                                     onChange={(e) => setCreateData('nombre_razon_social', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
@@ -252,80 +272,99 @@ export default function Index({ proveedores, filters = {} }) {
                                 {createErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_razon_social}</p>}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        NIT / CI <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={createData.nit_ci}
-                                        onChange={(e) => setCreateData('nit_ci', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    />
-                                    {createErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nit_ci}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Banco Destino <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="Ej: BNB, Mercantil, Económico..."
-                                        value={createData.banco}
-                                        onChange={(e) => setCreateData('banco', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    />
-                                    {createErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{createErrors.banco}</p>}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Tipo de Cuenta <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        value={createData.tipo_cuenta}
-                                        onChange={(e) => setCreateData('tipo_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    >
-                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
-                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
-                                        <option value="Otro">Otro</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Número de Cuenta <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={createData.numero_cuenta}
-                                        onChange={(e) => setCreateData('numero_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    />
-                                    {createErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.numero_cuenta}</p>}
-                                </div>
-                            </div>
-
                             <div>
                                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Titular de la Cuenta Bancaria <span className="text-cyan-400">*</span>
+                                    Descripción / Rubro / Observaciones (Opcional)
                                 </label>
                                 <input
                                     type="text"
-                                    required
-                                    value={createData.nombre_titular_cuenta}
-                                    onChange={(e) => setCreateData('nombre_titular_cuenta', e.target.value)}
+                                    placeholder="Ej: Gastos de oficina, compras en efectivo, servicios presenciales..."
+                                    value={createData.descripcion}
+                                    onChange={(e) => setCreateData('descripcion', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
                                 />
-                                {createErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_titular_cuenta}</p>}
+                                {createErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{createErrors.descripcion}</p>}
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Datos Bancarios (Opcional si el pago es en efectivo)
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            NIT / CI
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Opcional"
+                                            value={createData.nit_ci}
+                                            onChange={(e) => setCreateData('nit_ci', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                        />
+                                        {createErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nit_ci}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Banco Destino
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: BNB, Mercantil..."
+                                            value={createData.banco}
+                                            onChange={(e) => setCreateData('banco', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                        />
+                                        {createErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{createErrors.banco}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Tipo de Cuenta
+                                        </label>
+                                        <select
+                                            value={createData.tipo_cuenta}
+                                            onChange={(e) => setCreateData('tipo_cuenta', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                        >
+                                            <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                            <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Número de Cuenta
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Opcional"
+                                            value={createData.numero_cuenta}
+                                            onChange={(e) => setCreateData('numero_cuenta', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                        />
+                                        {createErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.numero_cuenta}</p>}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                        Titular de la Cuenta Bancaria
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre del titular"
+                                        value={createData.nombre_titular_cuenta}
+                                        onChange={(e) => setCreateData('nombre_titular_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    />
+                                    {createErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_titular_cuenta}</p>}
+                                </div>
                             </div>
 
                             <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
@@ -352,7 +391,7 @@ export default function Index({ proveedores, filters = {} }) {
             {/* Modal: Editar Proveedor */}
             {showEditModal && activeProveedor && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                         <button
                             onClick={() => setShowEditModal(false)}
                             className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -365,7 +404,7 @@ export default function Index({ proveedores, filters = {} }) {
                             <span>Editar Proveedor #{activeProveedor.id}</span>
                         </h3>
                         <p className="text-xs text-slate-400 mb-4">
-                            Actualiza la razón social, datos bancarios o número de cuenta del proveedor
+                            Actualiza la razón social, descripción o datos bancarios del proveedor
                         </p>
 
                         <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -383,79 +422,95 @@ export default function Index({ proveedores, filters = {} }) {
                                 {editErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_razon_social}</p>}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        NIT / CI <span className="text-amber-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editData.nit_ci}
-                                        onChange={(e) => setEditData('nit_ci', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                    />
-                                    {editErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nit_ci}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Banco Destino <span className="text-amber-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editData.banco}
-                                        onChange={(e) => setEditData('banco', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                    />
-                                    {editErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{editErrors.banco}</p>}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Tipo de Cuenta <span className="text-amber-400">*</span>
-                                    </label>
-                                    <select
-                                        value={editData.tipo_cuenta}
-                                        onChange={(e) => setEditData('tipo_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                    >
-                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
-                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
-                                        <option value="Otro">Otro</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Número de Cuenta <span className="text-amber-400">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editData.numero_cuenta}
-                                        onChange={(e) => setEditData('numero_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
-                                    />
-                                    {editErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.numero_cuenta}</p>}
-                                </div>
-                            </div>
-
                             <div>
                                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Titular de la Cuenta Bancaria <span className="text-amber-400">*</span>
+                                    Descripción / Rubro / Observaciones (Opcional)
                                 </label>
                                 <input
                                     type="text"
-                                    required
-                                    value={editData.nombre_titular_cuenta}
-                                    onChange={(e) => setEditData('nombre_titular_cuenta', e.target.value)}
+                                    placeholder="Ej: Gastos de oficina, compras en efectivo..."
+                                    value={editData.descripcion}
+                                    onChange={(e) => setEditData('descripcion', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                                 />
-                                {editErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_titular_cuenta}</p>}
+                                {editErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{editErrors.descripcion}</p>}
+                            </div>
+
+                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Datos Bancarios (Opcional)
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            NIT / CI
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editData.nit_ci}
+                                            onChange={(e) => setEditData('nit_ci', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                        />
+                                        {editErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nit_ci}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Banco Destino
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editData.banco}
+                                            onChange={(e) => setEditData('banco', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                        />
+                                        {editErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{editErrors.banco}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Tipo de Cuenta
+                                        </label>
+                                        <select
+                                            value={editData.tipo_cuenta}
+                                            onChange={(e) => setEditData('tipo_cuenta', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                        >
+                                            <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                            <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                            Número de Cuenta
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editData.numero_cuenta}
+                                            onChange={(e) => setEditData('numero_cuenta', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                                        />
+                                        {editErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.numero_cuenta}</p>}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                        Titular de la Cuenta Bancaria
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editData.nombre_titular_cuenta}
+                                        onChange={(e) => setEditData('nombre_titular_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                    />
+                                    {editErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_titular_cuenta}</p>}
+                                </div>
                             </div>
 
                             <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">

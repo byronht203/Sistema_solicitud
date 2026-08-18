@@ -237,6 +237,7 @@ class JefaturaController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nombre_razon_social', 'like', "%{$search}%")
+                  ->orWhere('descripcion', 'like', "%{$search}%")
                   ->orWhere('nit_ci', 'like', "%{$search}%")
                   ->orWhere('banco', 'like', "%{$search}%")
                   ->orWhere('numero_cuenta', 'like', "%{$search}%")

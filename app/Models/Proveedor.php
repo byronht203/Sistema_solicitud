@@ -15,6 +15,7 @@ class Proveedor extends Model
     protected $fillable = [
         'creado_por_usuario_id',
         'nombre_razon_social',
+        'descripcion',
         'nit_ci',
         'banco',
         'tipo_cuenta',

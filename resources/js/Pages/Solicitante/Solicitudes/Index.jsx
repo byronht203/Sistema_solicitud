@@ -42,6 +42,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
 
     const { data: createData, setData: setCreateData, post: postCreate, processing: createProcessing, reset: resetCreate } = useForm({
         empresa_id: empresas.length > 0 ? empresas[0].id : '',
+        tipo_solicitud: 'Pago a Proveedor',
         jefe_id: jefes.length > 0 ? jefes[0].id : '',
         contabilidad_id: contabilidades.length > 0 ? contabilidades[0].id : '',
         proveedor_id: proveedores.length > 0 ? proveedores[0].id : '',
@@ -57,6 +58,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
 
     const { data: editData, setData: setEditData, post: postUpdate, processing: updateProcessing, reset: resetEdit } = useForm({
         empresa_id: '',
+        tipo_solicitud: 'Pago a Proveedor',
         jefe_id: '',
         contabilidad_id: '',
         proveedor_id: '',
@@ -139,6 +141,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
         setSelectedSolicitud(solicitud);
         setEditData({
             empresa_id: solicitud.empresa_id,
+            tipo_solicitud: solicitud.tipo_solicitud || 'Pago a Proveedor',
             jefe_id: solicitud.jefe_id || (jefes.length > 0 ? jefes[0].id : ''),
             contabilidad_id: solicitud.contabilidad_id || (contabilidades.length > 0 ? contabilidades[0].id : ''),
             proveedor_id: solicitud.proveedor_id,
@@ -410,10 +413,17 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                 {solicitudes.data.map((solicitud) => (
                                     <tr key={solicitud.id} className="hover:bg-slate-800/40 transition">
                                         <td className="px-4 py-4 font-medium">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className="font-extrabold text-cyan-400">#{solicitud.id}</span>
                                                 <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[11px] font-bold border border-slate-700">
                                                     {solicitud.empresa?.nombre}
+                                                </span>
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                                                    solicitud.tipo_solicitud === 'Caja Chica'
+                                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                        : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                                                }`}>
+                                                    {solicitud.tipo_solicitud || 'Pago a Proveedor'}
                                                 </span>
                                             </div>
                                             <div className="text-[11px] text-slate-400 mt-1 line-clamp-2 max-w-xs" title={solicitud.motivo_descripcion}>
@@ -437,8 +447,17 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                             <div className="font-bold text-white">
                                                 {solicitud.proveedor?.nombre_razon_social}
                                             </div>
+                                            {solicitud.proveedor?.descripcion && (
+                                                <div className="text-[10px] text-slate-400 italic line-clamp-1">
+                                                    {solicitud.proveedor.descripcion}
+                                                </div>
+                                            )}
                                             <div className="text-[11px] text-cyan-400 font-mono mt-0.5">
-                                                {solicitud.proveedor?.banco} - N° {solicitud.proveedor?.numero_cuenta}
+                                                {solicitud.proveedor?.numero_cuenta ? (
+                                                    `${solicitud.proveedor?.banco} - N° ${solicitud.proveedor?.numero_cuenta}`
+                                                ) : (
+                                                    <span className="text-slate-400 italic text-[10px]">💵 Pago Efectivo / Presencial</span>
+                                                )}
                                             </div>
                                         </td>
 
@@ -574,12 +593,57 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                 <PlusCircle className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-white">Nueva Solicitud de Pago</h3>
-                                <p className="text-xs text-slate-400">Ingresa los datos del pago y adjunta tu respaldo</p>
+                                <h3 className="text-lg font-bold text-white">Nueva Solicitud de Desembolso</h3>
+                                <p className="text-xs text-slate-400">Selecciona el tipo de solicitud, ingresa los datos y adjunta tu proforma o justificante</p>
                             </div>
                         </div>
 
                         <form onSubmit={handleCreateSubmit} className="space-y-4">
+                            {/* Selector de Tipo de Solicitud */}
+                            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                                <label className="block text-xs font-bold text-slate-300 mb-2">
+                                    Tipo de Solicitud de Fondos <span className="text-cyan-400">*</span>
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCreateData('tipo_solicitud', 'Pago a Proveedor')}
+                                        className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            createData.tipo_solicitud === 'Pago a Proveedor'
+                                                ? 'bg-cyan-600 text-white border-cyan-500 shadow-md shadow-cyan-600/30 ring-1 ring-cyan-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <Truck className="w-4 h-4" />
+                                        <span>Pago a Proveedor (Transferencia / Regular)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setCreateData(prev => ({
+                                                ...prev,
+                                                tipo_solicitud: 'Caja Chica',
+                                                modalidad_pago: 'Efectivo'
+                                            }));
+                                        }}
+                                        className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            createData.tipo_solicitud === 'Caja Chica'
+                                                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30 ring-1 ring-amber-300 font-extrabold'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <DollarSign className="w-4 h-4" />
+                                        <span>Caja Chica / Reembolso / Efectivo</span>
+                                    </button>
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-2">
+                                    {createData.tipo_solicitud === 'Caja Chica'
+                                        ? '⚡ Modo Caja Chica: Diseñado para pagos presenciales en efectivo, reembolsos y compras menores. No requiere que el proveedor tenga cuenta bancaria.'
+                                        : '💼 Modo Pago a Proveedor: Desembolso regular con transferencia bancaria a la cuenta registrada del proveedor.'}
+                                </p>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -647,7 +711,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Proveedor Destino <span className="text-cyan-400">*</span>
+                                        Proveedor / Beneficiario <span className="text-cyan-400">*</span>
                                     </label>
                                     <select
                                         required
@@ -656,7 +720,9 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
                                     >
                                         {proveedores.map((prov) => (
-                                            <option key={prov.id} value={prov.id}>{prov.nombre_razon_social} ({prov.banco})</option>
+                                            <option key={prov.id} value={prov.id}>
+                                                {prov.nombre_razon_social} {prov.descripcion ? `— ${prov.descripcion}` : (prov.banco ? `(${prov.banco})` : '— Efectivo')}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -819,6 +885,46 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                         )}
 
                         <form onSubmit={handleEditSubmit} className="space-y-4">
+                            {/* Selector de Tipo de Solicitud en Edición */}
+                            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                                <label className="block text-xs font-bold text-slate-300 mb-2">
+                                    Tipo de Solicitud de Fondos <span className="text-amber-400">*</span>
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditData('tipo_solicitud', 'Pago a Proveedor')}
+                                        className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            editData.tipo_solicitud === 'Pago a Proveedor'
+                                                ? 'bg-cyan-600 text-white border-cyan-500 shadow-md shadow-cyan-600/30 ring-1 ring-cyan-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <Truck className="w-4 h-4" />
+                                        <span>Pago a Proveedor (Transferencia / Regular)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditData(prev => ({
+                                                ...prev,
+                                                tipo_solicitud: 'Caja Chica',
+                                                modalidad_pago: 'Efectivo'
+                                            }));
+                                        }}
+                                        className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            editData.tipo_solicitud === 'Caja Chica'
+                                                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30 ring-1 ring-amber-300 font-extrabold'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <DollarSign className="w-4 h-4" />
+                                        <span>Caja Chica / Reembolso / Efectivo</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -886,7 +992,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Proveedor Destino
+                                        Proveedor / Beneficiario
                                     </label>
                                     <select
                                         required
@@ -895,7 +1001,9 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
                                     >
                                         {proveedores.map((prov) => (
-                                            <option key={prov.id} value={prov.id}>{prov.nombre_razon_social} ({prov.banco})</option>
+                                            <option key={prov.id} value={prov.id}>
+                                                {prov.nombre_razon_social} {prov.descripcion ? `— ${prov.descripcion}` : (prov.banco ? `(${prov.banco})` : '— Efectivo')}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -1000,14 +1108,37 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                             </div>
                         </div>
 
-                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs space-y-2 mb-4">
+                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs space-y-2.5 mb-4">
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span className="text-slate-400">Tipo de Solicitud:</span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                    selectedSolicitud.tipo_solicitud === 'Caja Chica'
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                        : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                                }`}>
+                                    {selectedSolicitud.tipo_solicitud || 'Pago a Proveedor'}
+                                </span>
+                            </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Proveedor:</span>
-                                <span className="font-bold text-white">{selectedSolicitud.proveedor?.nombre_razon_social}</span>
+                                <span className="text-slate-400">Proveedor / Beneficiario:</span>
+                                <div className="text-right">
+                                    <div className="font-bold text-white">{selectedSolicitud.proveedor?.nombre_razon_social}</div>
+                                    {selectedSolicitud.proveedor?.descripcion && (
+                                        <div className="text-[11px] text-slate-400 italic">{selectedSolicitud.proveedor.descripcion}</div>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400">Banco & N° Cuenta:</span>
-                                <span className="font-bold text-cyan-400">{selectedSolicitud.proveedor?.banco} - {selectedSolicitud.proveedor?.numero_cuenta}</span>
+                                <div className="text-right">
+                                    {selectedSolicitud.proveedor?.numero_cuenta ? (
+                                        <span className="font-bold text-cyan-400">
+                                            {selectedSolicitud.proveedor?.banco} - {selectedSolicitud.proveedor?.numero_cuenta}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-400 italic">💵 Pago en Efectivo / Sin cuenta bancaria</span>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex justify-between font-bold pt-2 border-t border-slate-800">
                                 <span className="text-slate-300">Monto:</span>

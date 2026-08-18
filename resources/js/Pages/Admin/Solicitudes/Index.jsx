@@ -37,9 +37,9 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
     const [monedaState, setMonedaState] = useState(filters.moneda || '');
 
     // Form for Create/Edit
-    // Form for Create/Edit
     const { data, setData, post, processing, errors, reset } = useForm({
         empresa_id: '',
+        tipo_solicitud: 'Pago a Proveedor',
         solicitante_id: '',
         jefe_id: '',
         contabilidad_id: '',
@@ -133,10 +133,22 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
 
     const openCreateModal = () => {
         reset();
-        if (empresas.length > 0) setData('empresa_id', empresas[0].id);
-        if (usuarios.length > 0) setData('solicitante_id', usuarios[0].id);
-        if (jefes.length > 0) setData('jefe_id', jefes[0].id);
-        if (proveedores.length > 0) setData('proveedor_id', proveedores[0].id);
+        setData({
+            empresa_id: empresas.length > 0 ? empresas[0].id : '',
+            tipo_solicitud: 'Pago a Proveedor',
+            solicitante_id: usuarios.length > 0 ? usuarios[0].id : '',
+            jefe_id: jefes.length > 0 ? jefes[0].id : '',
+            contabilidad_id: contabilidades.length > 0 ? contabilidades[0].id : '',
+            proveedor_id: proveedores.length > 0 ? proveedores[0].id : '',
+            motivo_descripcion: '',
+            monto: '',
+            moneda: 'BOB',
+            tipo_documento: 'Factura',
+            emite_factura: true,
+            modalidad_pago: 'Transferencia',
+            fecha_solicitud: new Date().toISOString().split('T')[0],
+            archivo_respaldo: null,
+        });
         setCreateModalOpen(true);
     };
 
@@ -154,6 +166,7 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
         setActiveSolicitud(sol);
         setData({
             empresa_id: sol.empresa_id,
+            tipo_solicitud: sol.tipo_solicitud || 'Pago a Proveedor',
             solicitante_id: sol.solicitante_id,
             jefe_id: sol.jefe_id || '',
             contabilidad_id: sol.contabilidad_id || '',
@@ -337,8 +350,17 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                 solicitudes.data.map((sol) => (
                                     <tr key={sol.id} className="hover:bg-slate-800/40 transition">
                                         <td className="px-4 py-3.5">
-                                            <div className="font-bold text-white text-sm">#{sol.id}</div>
-                                            <div className="text-[10px] text-slate-400">{sol.fecha_solicitud}</div>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="font-bold text-white text-sm">#{sol.id}</span>
+                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                    sol.tipo_solicitud === 'Caja Chica'
+                                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                        : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                                }`}>
+                                                    {sol.tipo_solicitud || 'Pago Proveedor'}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-0.5">{sol.fecha_solicitud}</div>
                                         </td>
                                         <td className="px-4 py-3.5 font-semibold text-slate-200">
                                             {sol.empresa?.nombre}
@@ -349,7 +371,12 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                         </td>
                                         <td className="px-4 py-3.5">
                                             <div className="font-medium text-slate-200">{sol.proveedor?.nombre_razon_social}</div>
-                                            <div className="text-[10px] text-slate-400">{sol.proveedor?.banco}</div>
+                                            {sol.proveedor?.descripcion && (
+                                                <div className="text-[10px] text-slate-400 italic line-clamp-1">{sol.proveedor.descripcion}</div>
+                                            )}
+                                            <div className="text-[10px] text-slate-400">
+                                                {sol.proveedor?.banco || '💵 Efectivo / Sin cuenta'}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3.5 font-black text-white text-sm">
                                             {Number(sol.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })} <span className="text-xs font-semibold text-indigo-400">{sol.moneda}</span>
@@ -451,6 +478,44 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                         </div>
 
                         <form onSubmit={createModalOpen ? handleCreateSubmit : handleEditSubmit} className="space-y-4 text-xs">
+                            {/* Selector Tipo Solicitud */}
+                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">
+                                <label className="block font-semibold text-slate-300 uppercase mb-2">Tipo de Solicitud</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('tipo_solicitud', 'Pago a Proveedor')}
+                                        className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            data.tipo_solicitud === 'Pago a Proveedor'
+                                                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <Truck className="w-4 h-4" />
+                                        <span>Pago a Proveedor (Transferencia)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setData(prev => ({
+                                                ...prev,
+                                                tipo_solicitud: 'Caja Chica',
+                                                modalidad_pago: 'Efectivo'
+                                            }));
+                                        }}
+                                        className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                                            data.tipo_solicitud === 'Caja Chica'
+                                                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30 font-extrabold'
+                                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <DollarSign className="w-4 h-4" />
+                                        <span>Caja Chica / Reembolso (Efectivo)</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block font-semibold text-slate-300 uppercase mb-1">Empresa</label>
@@ -526,8 +591,8 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                     )}
                                 </div>
 
-                                <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Proveedor Beneficiario</label>
+                                <div className="sm:col-span-4">
+                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Proveedor / Beneficiario</label>
                                     <select
                                         value={data.proveedor_id}
                                         onChange={(e) => setData('proveedor_id', e.target.value)}
@@ -536,7 +601,9 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                     >
                                         <option value="">Seleccione Proveedor...</option>
                                         {proveedores.map((p) => (
-                                            <option key={p.id} value={p.id}>{p.nombre_razon_social} ({p.banco})</option>
+                                            <option key={p.id} value={p.id}>
+                                                {p.nombre_razon_social} {p.descripcion ? `— ${p.descripcion}` : (p.banco ? `(${p.banco})` : '— Efectivo')}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -746,10 +813,22 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                         </div>
 
                         <div className="space-y-4 text-xs">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                                <div>
+                                    <span className="text-slate-500 uppercase font-semibold">Tipo</span>
+                                    <p className="mt-1">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                            activeSolicitud.tipo_solicitud === 'Caja Chica'
+                                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                        }`}>
+                                            {activeSolicitud.tipo_solicitud || 'Pago Proveedor'}
+                                        </span>
+                                    </p>
+                                </div>
                                 <div>
                                     <span className="text-slate-500 uppercase font-semibold">Empresa</span>
-                                    <p className="font-bold text-white text-sm">{activeSolicitud.empresa?.nombre}</p>
+                                    <p className="font-bold text-white text-sm mt-1">{activeSolicitud.empresa?.nombre}</p>
                                 </div>
                                 <div>
                                     <span className="text-slate-500 uppercase font-semibold">Estado</span>
@@ -757,7 +836,7 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                 </div>
                                 <div>
                                     <span className="text-slate-500 uppercase font-semibold">Monto Total</span>
-                                    <p className="font-black text-indigo-400 text-base">
+                                    <p className="font-black text-indigo-400 text-base mt-1">
                                         {Number(activeSolicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })} {activeSolicitud.moneda}
                                     </p>
                                 </div>
@@ -778,12 +857,21 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                 </div>
 
                                 <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800">
-                                    <span className="text-cyan-400 uppercase font-bold block mb-2">Datos Bancarios del Proveedor</span>
+                                    <span className="text-cyan-400 uppercase font-bold block mb-2">Proveedor / Beneficiario</span>
                                     <p className="text-white font-bold">{activeSolicitud.proveedor?.nombre_razon_social}</p>
-                                    <p className="text-slate-300">Banco: <strong>{activeSolicitud.proveedor?.banco}</strong></p>
-                                    <p className="text-slate-300">Cuenta: <strong>{activeSolicitud.proveedor?.numero_cuenta}</strong> ({activeSolicitud.proveedor?.tipo_cuenta})</p>
-                                    <p className="text-slate-400">Titular: {activeSolicitud.proveedor?.nombre_titular_cuenta}</p>
-                                    <p className="text-slate-400">NIT/CI: {activeSolicitud.proveedor?.nit_ci}</p>
+                                    {activeSolicitud.proveedor?.descripcion && (
+                                        <p className="text-slate-400 italic text-[11px] mt-0.5">{activeSolicitud.proveedor.descripcion}</p>
+                                    )}
+                                    {activeSolicitud.proveedor?.numero_cuenta ? (
+                                        <>
+                                            <p className="text-slate-300 mt-1">Banco: <strong>{activeSolicitud.proveedor?.banco}</strong></p>
+                                            <p className="text-slate-300">Cuenta: <strong>{activeSolicitud.proveedor?.numero_cuenta}</strong> ({activeSolicitud.proveedor?.tipo_cuenta})</p>
+                                            <p className="text-slate-400">Titular: {activeSolicitud.proveedor?.nombre_titular_cuenta}</p>
+                                            <p className="text-slate-400">NIT/CI: {activeSolicitud.proveedor?.nit_ci || 'Sin NIT'}</p>
+                                        </>
+                                    ) : (
+                                        <p className="text-amber-400/90 italic text-[11px] mt-2">💵 Pago en Efectivo / Presencial (Sin cuenta bancaria)</p>
+                                    )}
                                 </div>
                             </div>
 
