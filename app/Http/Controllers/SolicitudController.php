@@ -47,8 +47,8 @@ class SolicitudController extends Controller
         $empresas = Empresa::all();
         $proveedores = Proveedor::all();
         $usuarios = User::with(['rol', 'empresas'])->get();
-        $contabilidades = User::with('empresas')->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+        $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
         })->get();
 
         return Inertia::render('Admin/Solicitudes/Index', [

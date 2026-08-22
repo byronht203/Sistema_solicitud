@@ -19,7 +19,7 @@ import {
     UserCheck
 } from 'lucide-react';
 
-export default function JefaturaLayout({ children, title, badgePendientes = 0 }) {
+export default function JefaturaLayout({ children, title, badgePendientes = 0, badgeMisSolicitudes = 0 }) {
     const { auth, flash } = usePage().props;
     const user = auth?.user || {};
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,6 +36,13 @@ export default function JefaturaLayout({ children, title, badgePendientes = 0 })
             routeName: 'jefatura.solicitudes', 
             icon: CheckSquare,
             badge: badgePendientes > 0 ? badgePendientes : null
+        },
+        { 
+            name: 'Mis Solicitudes Realizadas', 
+            href: route('jefatura.mis-solicitudes'), 
+            routeName: 'jefatura.mis-solicitudes', 
+            icon: FileSpreadsheet,
+            badge: badgeMisSolicitudes > 0 ? badgeMisSolicitudes : null
         },
         { name: 'Proveedores & Cuentas', href: route('jefatura.proveedores'), routeName: 'jefatura.proveedores', icon: Truck },
         { name: 'Empresas Corporativas', href: route('empresas.index'), routeName: 'empresas.index', icon: Building2 },

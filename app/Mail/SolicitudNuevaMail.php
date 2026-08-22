@@ -175,13 +175,39 @@ class SolicitudNuevaMail extends Mailable
                 }
             }
 
-            // 4. Incluir a Contabilidad
-            $contaUsers = User::whereHas('rol', function ($q) {
-                $q->whereIn('nombre', ['Contabilidad', 'Conta']);
-            })->get();
+            // 4. Incluir a Contabilidad o Caja Chica según corresponda
+            $isFralak = str_contains(strtolower($solicitud->empresa ? $solicitud->empresa->nombre : ''), 'fralak');
+            $isCajaChica = ($solicitud->tipo_solicitud === 'Caja Chica') || ($solicitud->moneda === 'BOB' && $solicitud->monto <= 300);
 
-            foreach ($contaUsers as $c) {
-                $destinatarios[] = $c->getCorreoCorporativoParaEmpresa($empresaId);
+            if ($solicitud->contabilidad) {
+                $correoConta = $solicitud->contabilidad->getCorreoCorporativoParaEmpresa($empresaId);
+                if ($correoConta) {
+                    $destinatarios[] = $correoConta;
+                }
+            } elseif ($isFralak && $isCajaChica) {
+                // Notificar exclusivamente a la encargada de Caja Chica Fralak (Maribel Caero)
+                $cajaUsers = User::whereHas('rol', function ($q) {
+                    $q->whereIn('nombre', ['Caja Chica', 'Cajachica']);
+                })->get();
+
+                foreach ($cajaUsers as $c) {
+                    $email = $c->getCorreoCorporativoParaEmpresa($empresaId);
+                    if ($email) {
+                        $destinatarios[] = $email;
+                    }
+                }
+            } else {
+                // Notificar a Contabilidad General de esa empresa
+                $contaUsers = User::whereHas('rol', function ($q) {
+                    $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+                })->get();
+
+                foreach ($contaUsers as $c) {
+                    $email = $c->getCorreoCorporativoParaEmpresa($empresaId);
+                    if ($email) {
+                        $destinatarios[] = $email;
+                    }
+                }
             }
 
             $destinatarios = array_values(array_unique(array_filter($destinatarios)));

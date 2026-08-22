@@ -20,12 +20,14 @@ class DatabaseSeeder extends Seeder
         $rolJefe = Role::firstOrCreate(['nombre' => 'Jefe'], ['descripcion' => 'Revisión y aprobación de solicitudes de su área']);
         $rolConta = Role::firstOrCreate(['nombre' => 'Contabilidad'], ['descripcion' => 'Procesamiento de pagos y desembolsos']);
         $rolSolicitante = Role::firstOrCreate(['nombre' => 'Solicitante'], ['descripcion' => 'Creación y seguimiento de solicitudes de pago']);
+        $rolCajaChica = Role::firstOrCreate(['nombre' => 'Caja Chica'], ['descripcion' => 'Gestión y desembolso exclusivo de solicitudes de Caja Chica']);
 
         $rolesDb = [
             'Administrador' => $rolAdmin->id,
             'Jefe' => $rolJefe->id,
             'Contabilidad' => $rolConta->id,
             'Solicitante' => $rolSolicitante->id,
+            'Caja Chica' => $rolCajaChica->id,
         ];
 
         // 2. Empresas
@@ -147,6 +149,13 @@ class DatabaseSeeder extends Seeder
                             'password' => 'v58PAxFVT7yK',
                             'rol' => 'Solicitante',
                             'cargo' => 'Asistente de Sistemas'
+                        ],
+                        'maribel caero agreda' => [
+                            'login' => 'regente.scz@fralak.com.bo',
+                            'password' => 'Fralak1155$',
+                            'rol' => 'Caja Chica',
+                            'cargo' => 'Regente Farmacéutico / Encargada Caja Chica',
+                            'only_fralak' => true,
                         ]
                     ];
 
@@ -158,6 +167,8 @@ class DatabaseSeeder extends Seeder
                             $roleName = $specialUsers[$normKey]['rol'];
                         } elseif (in_array('Jefe', $u['roles']) || in_array('Jefatura', $u['roles'])) {
                             $roleName = 'Jefe';
+                        } elseif (in_array('Caja Chica', $u['roles'])) {
+                            $roleName = 'Caja Chica';
                         } elseif (in_array('Contabilidad', $u['roles'])) {
                             $roleName = 'Contabilidad';
                         }
@@ -223,9 +234,14 @@ class DatabaseSeeder extends Seeder
                         );
 
                         $syncData = [];
-                        if (!empty($fralakEmail)) $syncData[$emp1->id] = ['correo_corporativo' => $fralakEmail];
-                        if (!empty($dotmedEmail)) $syncData[$emp2->id] = ['correo_corporativo' => $dotmedEmail];
-                        if (!empty($cidEmail))    $syncData[$emp3->id] = ['correo_corporativo' => $cidEmail];
+                        if (isset($specialUsers[$normKey]['only_fralak']) && $specialUsers[$normKey]['only_fralak']) {
+                            // Usuario exclusivo de Fralak SRL (ej: Caja Chica Maribel)
+                            $syncData[$emp1->id] = ['correo_corporativo' => $loginEmail];
+                        } else {
+                            if (!empty($fralakEmail)) $syncData[$emp1->id] = ['correo_corporativo' => $fralakEmail];
+                            if (!empty($dotmedEmail)) $syncData[$emp2->id] = ['correo_corporativo' => $dotmedEmail];
+                            if (!empty($cidEmail))    $syncData[$emp3->id] = ['correo_corporativo' => $cidEmail];
+                        }
 
                         $user->empresas()->sync($syncData);
                     }

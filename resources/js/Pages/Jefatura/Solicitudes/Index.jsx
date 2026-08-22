@@ -20,12 +20,25 @@ import {
     MessageSquare,
     Eye,
     CheckSquare,
-    Mail
+    Mail,
+    Paperclip,
+    ArrowUpRight,
+    ShieldCheck
 } from 'lucide-react';
 
-export default function Index({ solicitudes, empresas = [], proveedores = [], badgePendientes = 0, filters = {} }) {
+export default function Index({
+    solicitudes,
+    empresas = [],
+    proveedores = [],
+    badgePorAprobar = 0,
+    badgeAprobadas = 0,
+    badgeObservadas = 0,
+    badgeMisSolicitudes = 0,
+    activeEstado = 'Pendiente',
+    filters = {}
+}) {
     const [search, setSearch] = useState(filters.search || '');
-    const [estado, setEstado] = useState(filters.estado || 'Pendiente');
+    const [estado, setEstado] = useState(filters.estado || activeEstado || 'Pendiente');
     const [empresaId, setEmpresaId] = useState(filters.empresa_id || '');
     const [moneda, setMoneda] = useState(filters.moneda || '');
 
@@ -36,7 +49,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
     const [mailHtml, setMailHtml] = useState('');
     const [loadingMail, setLoadingMail] = useState(false);
 
-    const { data, setData, post, processing, reset } = useForm({
+    const { data: reviewData, setData: setReviewData, post: postReview, processing: reviewProcessing, reset: resetReview } = useForm({
         comentarios_revision: '',
     });
 
@@ -63,7 +76,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
         setModalAction(action);
         let defaultNote = '';
         if (action === 'aprobar') defaultNote = 'Aprobado sin observaciones por jefatura.';
-        setData({ comentarios_revision: defaultNote });
+        setReviewData({ comentarios_revision: defaultNote });
     };
 
     const openDetailModal = (solicitud) => {
@@ -93,11 +106,11 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
         if (!selectedSolicitud || !modalAction) return;
 
         let routeName = `jefatura.solicitudes.${modalAction}`;
-        post(route(routeName, selectedSolicitud.id), {
+        postReview(route(routeName, selectedSolicitud.id), {
             onSuccess: () => {
                 setModalAction(null);
                 setSelectedSolicitud(null);
-                reset();
+                resetReview();
             },
         });
     };
@@ -124,13 +137,13 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                 );
             case 'Observado':
                 return (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-xs font-bold">
                         <AlertCircle className="w-3.5 h-3.5" /> OBSERVADO
                     </span>
                 );
             case 'Rechazado':
                 return (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-xs font-bold">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold">
                         <XCircle className="w-3.5 h-3.5" /> RECHAZADO
                     </span>
                 );
@@ -140,21 +153,36 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
     };
 
     return (
-        <JefaturaLayout title="Solicitudes por Aprobar" badgePendientes={badgePendientes}>
-            {/* Top Title & Filters Bar */}
+        <JefaturaLayout
+            title="Bandeja de Aprobaciones (Solicitudes de Personal)"
+            badgePendientes={badgePorAprobar}
+            badgeMisSolicitudes={badgeMisSolicitudes}
+        >
+            {/* Top Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                        <CheckSquare className="w-6 h-6 text-indigo-400" />
-                        <span>Bandeja de Revisión y Aprobación</span>
+                        <CheckSquare className="w-6 h-6 text-amber-400" />
+                        <span>Bandeja de Aprobaciones (Solicitudes de Equipo)</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
-                        Valida la pertinencia de las solicitudes, montos y documentos adjuntos antes de derivar a Contabilidad.
+                        Audita, aprueba, observa o rechaza las solicitudes enviadas por el personal dependiente de tu área.
                     </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <Link
+                        href={route('jefatura.mis-solicitudes')}
+                        className="px-5 py-2.5 rounded-2xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 font-bold text-xs border border-cyan-800 transition flex items-center gap-2"
+                    >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Ir a Mis Solicitudes ({badgeMisSolicitudes})</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
                 </div>
             </div>
 
-            {/* Workflow Quick Filter Tabs */}
+            {/* Tabs */}
             <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-3">
                 <button
                     onClick={() => handleTabChange('Pendiente')}
@@ -165,9 +193,9 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                     }`}
                 >
                     <Clock className="w-4 h-4" />
-                    <span>Pendientes por Aprobar</span>
+                    <span>Pendientes de Aprobación</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-amber-200">
-                        {badgePendientes}
+                        {badgePorAprobar}
                     </span>
                 </button>
 
@@ -175,61 +203,57 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                     onClick={() => handleTabChange('Aprobado_Jefatura')}
                     className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
                         estado === 'Aprobado_Jefatura'
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 font-extrabold'
                             : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                     }`}
                 >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Aprobadas (Enviadas a Conta)</span>
+                    <span>Aprobadas por Mí</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-950 text-indigo-200">
+                        {badgeAprobadas}
+                    </span>
                 </button>
 
                 <button
                     onClick={() => handleTabChange('Observado')}
                     className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
                         estado === 'Observado'
-                            ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
+                            ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20 font-extrabold'
                             : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                     }`}
                 >
                     <AlertCircle className="w-4 h-4" />
-                    <span>Observadas</span>
+                    <span>En Observación</span>
+                    {badgeObservadas > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-950 text-rose-300">
+                            {badgeObservadas}
+                        </span>
+                    )}
                 </button>
 
                 <button
-                    onClick={() => handleTabChange('Rechazado')}
+                    onClick={() => handleTabChange('todas')}
                     className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
-                        estado === 'Rechazado'
-                            ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
+                        estado === 'todas'
+                            ? 'bg-slate-700 text-white font-extrabold'
                             : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                     }`}
                 >
-                    <XCircle className="w-4 h-4" />
-                    <span>Rechazadas</span>
-                </button>
-
-                <button
-                    onClick={() => handleTabChange('')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
-                        estado === ''
-                            ? 'bg-slate-700 text-white shadow-lg'
-                            : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                    }`}
-                >
-                    <span>Todas las Solicitudes</span>
+                    <span>Ver Todas del Equipo</span>
                 </button>
             </div>
 
-            {/* Filter Search Form */}
+            {/* Filter Bar */}
             <form onSubmit={handleFilterSubmit} className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="relative">
                         <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                         <input
                             type="text"
-                            placeholder="Buscar por motivo, solicitante, proveedor..."
+                            placeholder="Buscar por solicitante, proveedor o motivo..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                         />
                     </div>
 
@@ -237,7 +261,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         <select
                             value={empresaId}
                             onChange={(e) => setEmpresaId(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                         >
                             <option value="">Todas las Empresas</option>
                             {empresas.map((emp) => (
@@ -250,191 +274,155 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         <select
                             value={moneda}
                             onChange={(e) => setMoneda(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                         >
                             <option value="">Todas las Monedas</option>
-                            <option value="BOB">BOB (Bolivianos)</option>
-                            <option value="USD">USD (Dólares)</option>
+                            <option value="BOB">Bolivianos (BOB)</option>
+                            <option value="USD">Dólares (USD)</option>
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
                         <button
                             type="submit"
-                            className="flex-1 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5"
+                            className="flex-1 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5"
                         >
                             <Filter className="w-3.5 h-3.5" />
-                            <span>Aplicar Filtros</span>
+                            <span>Filtrar</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSearch('');
+                                setEmpresaId('');
+                                setMoneda('');
+                                router.get(route('jefatura.solicitudes', { estado: 'Pendiente' }));
+                            }}
+                            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition"
+                            title="Limpiar Filtros"
+                        >
+                            Limpiar
                         </button>
                     </div>
                 </div>
             </form>
 
             {/* Solicitudes Table */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl mb-6 overflow-hidden">
                 {solicitudes.data.length === 0 ? (
-                    <div className="text-center py-16 px-4">
-                        <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                        <h4 className="text-base font-bold text-slate-300">No se encontraron solicitudes</h4>
-                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                            No existen solicitudes con los criterios de búsqueda seleccionados.
-                        </p>
+                    <div className="text-center py-12 text-slate-400">
+                        <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
+                        <p className="text-sm font-semibold text-white">No hay solicitudes en esta sección</p>
+                        <p className="text-xs mt-1">No hay solicitudes de personal con el estado seleccionado.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs text-slate-300">
                             <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th className="px-4 py-3.5">ID / Empresa</th>
-                                    <th className="px-4 py-3.5">Estado & Trazabilidad</th>
-                                    <th className="px-4 py-3.5">Solicitante</th>
-                                    <th className="px-4 py-3.5">Proveedor</th>
-                                    <th className="px-4 py-3.5">Monto & Pago</th>
-                                    <th className="px-4 py-3.5">Documento & Factura</th>
-                                    <th className="px-4 py-3.5 text-right">Decisión Jefatura</th>
+                                    <th className="px-4 py-3 rounded-l-xl">ID / Empresa</th>
+                                    <th className="px-4 py-3">Solicitante</th>
+                                    <th className="px-4 py-3">Tipo & Motivo</th>
+                                    <th className="px-4 py-3">Proveedor / Beneficiario</th>
+                                    <th className="px-4 py-3">Monto & Moneda</th>
+                                    <th className="px-4 py-3">Estado</th>
+                                    <th className="px-4 py-3 text-right rounded-r-xl">Acciones de Aprobación</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/60">
-                                {solicitudes.data.map((solicitud) => (
-                                    <tr key={solicitud.id} className="hover:bg-slate-800/40 transition">
-                                        <td className="px-4 py-4 font-medium">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="font-extrabold text-indigo-400">#{solicitud.id}</span>
+                                {solicitudes.data.map((sol) => (
+                                    <tr key={sol.id} className="hover:bg-slate-800/40 transition">
+                                        <td className="px-4 py-3.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-extrabold text-amber-400">#{sol.id}</span>
                                                 <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[11px] font-bold border border-slate-700">
-                                                    {solicitud.empresa?.nombre}
-                                                </span>
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                                                    solicitud.tipo_solicitud === 'Caja Chica'
-                                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                                                }`}>
-                                                    {solicitud.tipo_solicitud || 'Pago a Proveedor'}
+                                                    {sol.empresa?.nombre}
                                                 </span>
                                             </div>
-                                            <div className="text-[11px] text-slate-400 mt-1 line-clamp-2 max-w-xs" title={solicitud.motivo_descripcion}>
-                                                {solicitud.motivo_descripcion}
-                                            </div>
-                                            <div className="text-[10px] text-slate-500 mt-0.5">
-                                                Fecha: {solicitud.fecha_solicitud}
-                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-1">{sol.fecha_solicitud}</div>
                                         </td>
 
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            <div>{getEstadoBadge(solicitud.estado)}</div>
-                                            {solicitud.revisado_por_jefe && (
-                                                <div className="text-[10px] text-slate-400 mt-1">
-                                                    Revisado por: <span className="text-slate-200 font-semibold">{solicitud.revisado_por_jefe.nombre}</span>
-                                                </div>
-                                            )}
-                                        </td>
-
-                                        <td className="px-4 py-4">
-                                            <div className="font-semibold text-slate-200">
-                                                {solicitud.solicitante?.nombre_completo || solicitud.solicitante?.nombre}
+                                        <td className="px-4 py-3.5">
+                                            <div className="font-semibold text-white">
+                                                {sol.solicitante?.nombre_completo}
                                             </div>
                                             <div className="text-[10px] text-slate-400">
-                                                {solicitud.solicitante?.cargo || 'Solicitante'}
+                                                {sol.solicitante?.cargo || 'Personal'}
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-4">
-                                            <div className="font-bold text-white">
-                                                {solicitud.proveedor?.nombre_razon_social}
-                                            </div>
-                                            {solicitud.proveedor?.descripcion && (
-                                                <div className="text-[10px] text-slate-400 italic line-clamp-1">
-                                                    {solicitud.proveedor.descripcion}
-                                                </div>
-                                            )}
-                                            <div className="text-[10px] text-slate-400 mt-0.5">
-                                                {solicitud.proveedor?.numero_cuenta ? (
-                                                    `${solicitud.proveedor?.banco} - N° ${solicitud.proveedor?.numero_cuenta}`
-                                                ) : (
-                                                    <span className="text-slate-400 italic">💵 Pago Efectivo / Presencial</span>
-                                                )}
+                                        <td className="px-4 py-3.5">
+                                            <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-extrabold uppercase">
+                                                {sol.tipo_solicitud || 'Pago a Proveedor'}
+                                            </span>
+                                            <div className="text-[11px] text-slate-300 mt-1 line-clamp-1 max-w-xs" title={sol.motivo_descripcion}>
+                                                {sol.motivo_descripcion}
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-4 whitespace-nowrap">
+                                        <td className="px-4 py-3.5">
+                                            <div className="font-bold text-white flex items-center gap-1">
+                                                <Truck className="w-3 h-3 text-slate-400" />
+                                                <span>{sol.proveedor?.nombre_razon_social}</span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 font-mono">
+                                                {sol.proveedor?.banco ? `${sol.proveedor.banco}: ` : ''}{sol.proveedor?.numero_cuenta || 'S/N'}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-4 py-3.5 whitespace-nowrap">
                                             <div className="text-sm font-extrabold text-white">
-                                                {solicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(solicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                                                {sol.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(sol.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
                                             </div>
-                                            <div className="flex items-center gap-1 mt-1">
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                                                    {solicitud.modalidad_pago}
-                                                </span>
-                                            </div>
+                                            <span className="text-[10px] text-slate-400">{sol.modalidad_pago}</span>
                                         </td>
 
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold">
-                                                    {solicitud.tipo_documento}
-                                                </span>
-                                                {solicitud.emite_factura ? (
-                                                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
-                                                        Factura SÍ
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 text-[10px]">
-                                                        Sin Factura
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {solicitud.archivo_respaldo_path && (
-                                                <a
-                                                    href={`/storage/${solicitud.archivo_respaldo_path}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-[10px] text-cyan-400 hover:underline mt-1 flex items-center gap-1 font-medium"
-                                                >
-                                                    <FileText className="w-3 h-3" /> Ver Adjunto Respaldo
-                                                </a>
-                                            )}
+                                        <td className="px-4 py-3.5 whitespace-nowrap">
+                                            {getEstadoBadge(sol.estado)}
                                         </td>
 
-                                        <td className="px-4 py-4 text-right whitespace-nowrap">
+                                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <button
-                                                    onClick={() => openDetailModal(solicitud)}
-                                                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-                                                    title="Ver Ficha Completa"
+                                                    onClick={() => openDetailModal(sol)}
+                                                    className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition border border-slate-700"
+                                                    title="Ver Detalle"
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
 
                                                 <button
-                                                    onClick={() => openMailPreviewModal(solicitud)}
-                                                    className="p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white transition border border-indigo-500/30"
-                                                    title="Ver Comprobante de Correo Enviado"
+                                                    onClick={() => openMailPreviewModal(sol)}
+                                                    className="p-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white transition border border-indigo-500/30"
+                                                    title="Ver Comprobante de Correo"
                                                 >
                                                     <Mail className="w-4 h-4" />
                                                 </button>
 
-                                                {solicitud.estado === 'Pendiente' && (
+                                                {/* Acciones de Revisión */}
+                                                {sol.estado === 'Pendiente' && (
                                                     <>
                                                         <button
-                                                            onClick={() => openActionModal(solicitud, 'aprobar')}
-                                                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition flex items-center gap-1"
+                                                            onClick={() => openActionModal(sol, 'aprobar')}
+                                                            className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1"
+                                                            title="Aprobar Solicitud"
                                                         >
                                                             <ThumbsUp className="w-3.5 h-3.5" />
                                                             <span>Aprobar</span>
                                                         </button>
-
                                                         <button
-                                                            onClick={() => openActionModal(solicitud, 'observar')}
-                                                            className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-bold text-xs border border-amber-500/30 transition flex items-center gap-1"
+                                                            onClick={() => openActionModal(sol, 'observar')}
+                                                            className="p-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white transition border border-amber-500/30"
+                                                            title="Observar"
                                                         >
-                                                            <AlertCircle className="w-3.5 h-3.5" />
-                                                            <span>Observar</span>
+                                                            <AlertCircle className="w-4 h-4" />
                                                         </button>
-
                                                         <button
-                                                            onClick={() => openActionModal(solicitud, 'rechazar')}
-                                                            className="px-2.5 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white font-bold text-xs border border-rose-500/30 transition flex items-center gap-1"
+                                                            onClick={() => openActionModal(sol, 'rechazar')}
+                                                            className="p-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white transition border border-rose-500/30"
+                                                            title="Rechazar"
                                                         >
-                                                            <ThumbsDown className="w-3.5 h-3.5" />
-                                                            <span>Rechazar</span>
+                                                            <ThumbsDown className="w-4 h-4" />
                                                         </button>
                                                     </>
                                                 )}
@@ -449,21 +437,21 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
 
                 {/* Pagination */}
                 {solicitudes.links && solicitudes.links.length > 3 && (
-                    <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs text-slate-400">
-                        <div>
-                            Mostrando {solicitudes.from} a {solicitudes.to} de {solicitudes.total} solicitudes
-                        </div>
-                        <div className="flex items-center gap-1">
-                            {solicitudes.links.map((link, idx) => (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-800 text-xs text-slate-400">
+                        <span>Mostrando {solicitudes.from || 0} a {solicitudes.to || 0} de {solicitudes.total} registros</span>
+                        <div className="flex gap-1">
+                            {solicitudes.links.map((link, i) => (
                                 <Link
-                                    key={idx}
+                                    key={i}
                                     href={link.url || '#'}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                                    className={`px-3 py-1.5 rounded-lg font-medium transition ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white font-bold'
-                                            : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
-                                    } ${!link.url ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                            ? 'bg-amber-500 text-slate-950 font-bold'
+                                            : link.url
+                                            ? 'bg-slate-950 text-slate-300 hover:bg-slate-800'
+                                            : 'text-slate-600 cursor-not-allowed'
+                                    }`}
                                 />
                             ))}
                         </div>
@@ -471,199 +459,100 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                 )}
             </div>
 
-            {/* Modal de Acción (Aprobar / Observar / Rechazar) */}
-            {modalAction && selectedSolicitud && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
-                        <button
-                            onClick={() => setModalAction(null)}
-                            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        <div className="flex items-center gap-3 mb-5">
-                            {modalAction === 'aprobar' && (
-                                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-xl shrink-0">
-                                    <ThumbsUp className="w-6 h-6" />
-                                </div>
-                            )}
-                            {modalAction === 'observar' && (
-                                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold text-xl shrink-0">
-                                    <AlertCircle className="w-6 h-6" />
-                                </div>
-                            )}
-                            {modalAction === 'rechazar' && (
-                                <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center font-bold text-xl shrink-0">
-                                    <ThumbsDown className="w-6 h-6" />
-                                </div>
-                            )}
-                            <div>
-                                <h3 className="text-lg font-bold text-white capitalize">
-                                    {modalAction === 'aprobar' && 'Aprobar Solicitud'}
-                                    {modalAction === 'observar' && 'Observar Solicitud'}
-                                    {modalAction === 'rechazar' && 'Rechazar Solicitud'}
-                                </h3>
-                                <p className="text-xs text-slate-400">Solicitud #{selectedSolicitud.id} - {selectedSolicitud.empresa?.nombre}</p>
-                            </div>
-                        </div>
-
-                        {/* Summary Box */}
-                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 mb-5 text-xs text-slate-300 space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-slate-400">Solicitante:</span>
-                                <span className="font-bold text-white">{selectedSolicitud.solicitante?.nombre_completo}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-slate-400">Proveedor:</span>
-                                <span className="font-bold text-indigo-400">{selectedSolicitud.proveedor?.nombre_razon_social}</span>
-                            </div>
-                            <div className="flex justify-between font-bold pt-2 border-t border-slate-800">
-                                <span className="text-slate-300">Monto:</span>
-                                <span className="text-base text-emerald-400">
-                                    {selectedSolicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(selectedSolicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleConfirmAction} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                                    Comentario / Justificación de Jefatura {modalAction !== 'aprobar' && <span className="text-rose-400">*</span>}
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    required={modalAction !== 'aprobar'}
-                                    placeholder={
-                                        modalAction === 'aprobar'
-                                            ? 'Ej: Aprobado para pago inmediato...'
-                                            : 'Indica las observaciones o razones del rechazo...'
-                                    }
-                                    value={data.comentarios_revision}
-                                    onChange={(e) => setData('comentarios_revision', e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
-                                <button
-                                    type="button"
-                                    onClick={() => setModalAction(null)}
-                                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg transition flex items-center gap-1.5 ${
-                                        modalAction === 'aprobar'
-                                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
-                                            : modalAction === 'observar'
-                                            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
-                                            : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
-                                    }`}
-                                >
-                                    <span>
-                                        {modalAction === 'aprobar' && 'Confirmar Aprobación'}
-                                        {modalAction === 'observar' && 'Confirmar Observación'}
-                                        {modalAction === 'rechazar' && 'Confirmar Rechazo'}
-                                    </span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal: Detalle Completo de Solicitud */}
+            {/* MODAL DETALLE DE SOLICITUD */}
             {showDetailModal && selectedSolicitud && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button
-                            onClick={() => setShowDetailModal(false)}
-                            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xl shrink-0">
-                                <FileText className="w-6 h-6" />
-                            </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl relative my-8">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
                             <div>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-xl font-bold text-white">Solicitud de Pago #{selectedSolicitud.id}</h3>
-                                    {getEstadoBadge(selectedSolicitud.estado)}
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-amber-400" />
+                                    <span>Detalle de Solicitud #{selectedSolicitud.id}</span>
+                                </h3>
+                                <p className="text-xs text-slate-400">{selectedSolicitud.empresa?.nombre} • {selectedSolicitud.fecha_solicitud}</p>
+                            </div>
+                            <button
+                                onClick={() => { setShowDetailModal(false); setSelectedSolicitud(null); }}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3.5 text-xs">
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Solicitante:</span>
+                                    <span className="text-white font-bold">{selectedSolicitud.solicitante?.nombre_completo}</span>
                                 </div>
-                                <p className="text-xs text-slate-400">Empresa: <span className="text-white font-semibold">{selectedSolicitud.empresa?.nombre}</span></p>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Cargo / Rol:</span>
+                                    <span className="text-slate-300">{selectedSolicitud.solicitante?.cargo || 'Personal'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Tipo de Requerimiento:</span>
+                                    <span className="text-amber-400 font-bold">{selectedSolicitud.tipo_solicitud || 'Pago a Proveedor'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Estado Actual:</span>
+                                    <div>{getEstadoBadge(selectedSolicitud.estado)}</div>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Grid Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-6">
-                            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-                                <h4 className="font-bold text-indigo-400 uppercase text-[10px] tracking-wider mb-2">Datos del Solicitante</h4>
-                                <p className="text-white font-bold">{selectedSolicitud.solicitante?.nombre_completo}</p>
-                                <p className="text-slate-400">{selectedSolicitud.solicitante?.cargo}</p>
-                                <p className="text-slate-500 mt-1">CI: {selectedSolicitud.solicitante?.ci}</p>
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Proveedor:</span>
+                                    <span className="text-white font-bold">{selectedSolicitud.proveedor?.nombre_razon_social}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">NIT / CI:</span>
+                                    <span className="text-slate-300">{selectedSolicitud.proveedor?.nit_ci || 'No registrado'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Banco & Cuenta:</span>
+                                    <span className="text-emerald-400 font-mono font-bold">
+                                        {selectedSolicitud.proveedor?.banco}: {selectedSolicitud.proveedor?.numero_cuenta || 'S/N'}
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-                                <h4 className="font-bold text-emerald-400 uppercase text-[10px] tracking-wider mb-2">Proveedor / Beneficiario</h4>
-                                <p className="text-white font-bold">{selectedSolicitud.proveedor?.nombre_razon_social}</p>
-                                {selectedSolicitud.proveedor?.descripcion && (
-                                    <p className="text-slate-400 italic text-[11px] mt-0.5">{selectedSolicitud.proveedor.descripcion}</p>
-                                )}
-                                {selectedSolicitud.proveedor?.numero_cuenta ? (
-                                    <>
-                                        <p className="text-emerald-400 font-bold mt-1">{selectedSolicitud.proveedor?.banco}</p>
-                                        <p className="text-slate-300 font-mono text-[11px]">N° Cuenta: {selectedSolicitud.proveedor?.numero_cuenta}</p>
-                                        <p className="text-slate-400 text-[11px]">Titular: {selectedSolicitud.proveedor?.nombre_titular_cuenta}</p>
-                                    </>
-                                ) : (
-                                    <p className="text-amber-400/90 italic text-[11px] mt-1">💵 Pago en Efectivo / Presencial (Sin cuenta bancaria)</p>
-                                )}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80">
+                                <span className="text-slate-400 block mb-1 font-semibold">Motivo y Descripción:</span>
+                                <p className="text-slate-200 leading-relaxed italic">"{selectedSolicitud.motivo_descripcion}"</p>
                             </div>
-                        </div>
 
-                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs mb-6 space-y-2">
-                            <h4 className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1">Motivo y Descripción de la Compra</h4>
-                            <p className="text-slate-200 leading-relaxed">{selectedSolicitud.motivo_descripcion}</p>
-
-                            <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 to-slate-950 border border-amber-500/20 flex items-center justify-between">
                                 <div>
-                                    <span className="text-slate-500 block">Monto a pagar:</span>
+                                    <span className="text-slate-400 text-[11px] block">Monto a Desembolsar</span>
                                     <span className="text-lg font-extrabold text-white">
                                         {selectedSolicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(selectedSolicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
                                     </span>
                                 </div>
-
-                                <div>
-                                    <span className="text-slate-500 block">Modalidad de Pago:</span>
-                                    <span className="font-bold text-slate-200">{selectedSolicitud.modalidad_pago}</span>
-                                </div>
-
-                                <div>
-                                    <span className="text-slate-500 block">Documento:</span>
-                                    <span className="font-bold text-slate-200">{selectedSolicitud.tipo_documento} ({selectedSolicitud.emite_factura ? 'Con Factura' : 'Sin Factura'})</span>
+                                <div className="text-right text-[11px] text-slate-300">
+                                    <div>{selectedSolicitud.modalidad_pago}</div>
+                                    <div className="text-slate-400">{selectedSolicitud.tipo_documento} {selectedSolicitud.emite_factura ? '(Facturado)' : ''}</div>
                                 </div>
                             </div>
+
+                            {selectedSolicitud.archivo_respaldo_path && (
+                                <div className="pt-2">
+                                    <a
+                                        href={`/storage/${selectedSolicitud.archivo_respaldo_path}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold flex items-center justify-center gap-2 border border-slate-700 transition"
+                                    >
+                                        <Paperclip className="w-4 h-4" />
+                                        <span>Descargar / Ver Documento Adjunto</span>
+                                    </a>
+                                </div>
+                            )}
                         </div>
 
-                        {selectedSolicitud.comentarios_revision && (
-                            <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-xs mb-6">
-                                <h4 className="font-bold text-indigo-300 mb-1 flex items-center gap-1.5">
-                                    <MessageSquare className="w-4 h-4" /> Comentarios de Revisión:
-                                </h4>
-                                <p className="text-indigo-200/90">{selectedSolicitud.comentarios_revision}</p>
-                            </div>
-                        )}
-
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end pt-4 mt-4 border-t border-slate-800">
                             <button
-                                onClick={() => setShowDetailModal(false)}
-                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition"
+                                onClick={() => { setShowDetailModal(false); setSelectedSolicitud(null); }}
+                                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition"
                             >
                                 Cerrar
                             </button>
@@ -672,48 +561,126 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                 </div>
             )}
 
-            {/* Modal: Previsualización de Comprobante de Correo */}
-            {showMailModal && selectedSolicitud && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[95vh] flex flex-col">
-                        <button
-                            onClick={() => setShowMailModal(false)}
-                            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition z-10"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+            {/* MODAL DE ACCIÓN DE REVISIÓN (APROBAR / OBSERVAR / RECHAZAR SOLICITUD DE EQUIPO) */}
+            {modalAction && selectedSolicitud && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+                            <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                {modalAction === 'aprobar' && <ThumbsUp className="w-5 h-5 text-emerald-400" />}
+                                {modalAction === 'observar' && <AlertCircle className="w-5 h-5 text-amber-400" />}
+                                {modalAction === 'rechazar' && <ThumbsDown className="w-5 h-5 text-rose-400" />}
+                                <span className="capitalize">{modalAction} Solicitud #{selectedSolicitud.id}</span>
+                            </h3>
+                            <button
+                                onClick={() => { setModalAction(null); setSelectedSolicitud(null); }}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
 
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-lg shrink-0">
-                                <Mail className="w-5 h-5" />
+                        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 mb-4 text-xs space-y-1.5">
+                            <div className="flex justify-between">
+                                <span className="text-slate-400">Solicitante:</span>
+                                <span className="text-white font-semibold">{selectedSolicitud.solicitante?.nombre_completo}</span>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-white">Comprobante de Correo Enviado a Jefatura</h3>
-                                <p className="text-xs text-slate-400">Previsualización exacta del Mailable para la Solicitud #{selectedSolicitud.id}</p>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400">Proveedor:</span>
+                                <span className="text-white font-semibold">{selectedSolicitud.proveedor?.nombre_razon_social}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400">Monto:</span>
+                                <span className="text-emerald-400 font-bold">
+                                    {selectedSolicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(selectedSolicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                                </span>
                             </div>
                         </div>
 
-                        <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 p-2 overflow-hidden flex items-center justify-center min-h-[500px]">
+                        <form onSubmit={handleConfirmAction} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                    Comentarios u Observaciones de Jefatura:
+                                </label>
+                                <textarea
+                                    required={modalAction !== 'aprobar'}
+                                    rows={3}
+                                    value={reviewData.comentarios_revision}
+                                    onChange={(e) => setReviewData('comentarios_revision', e.target.value)}
+                                    placeholder={
+                                        modalAction === 'aprobar'
+                                            ? 'Nota opcional de aprobación...'
+                                            : 'Especifica la razón de la observación o rechazo...'
+                                    }
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => { setModalAction(null); setSelectedSolicitud(null); }}
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={reviewProcessing}
+                                    className={`px-5 py-2 rounded-xl text-white text-xs font-bold shadow-md transition ${
+                                        modalAction === 'aprobar'
+                                            ? 'bg-emerald-600 hover:bg-emerald-500'
+                                            : modalAction === 'observar'
+                                            ? 'bg-amber-600 hover:bg-amber-500'
+                                            : 'bg-rose-600 hover:bg-rose-500'
+                                    }`}
+                                >
+                                    {reviewProcessing ? 'Procesando...' : `Confirmar ${modalAction}`}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL VISTA PREVIA COMPROBANTE DE CORREO */}
+            {showMailModal && selectedSolicitud && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Mail className="w-5 h-5 text-amber-400" />
+                                    <span>Comprobante de Correo • Solicitud #{selectedSolicitud.id}</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Plantilla corporativa despachada automáticamente a través del servidor de correos
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setShowMailModal(false); setSelectedSolicitud(null); }}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto my-4 p-4 rounded-2xl bg-white text-slate-900 border border-slate-300 shadow-inner">
                             {loadingMail ? (
-                                <div className="text-center py-12 text-slate-400 text-xs flex flex-col items-center gap-3">
-                                    <Clock className="w-8 h-8 text-indigo-400 animate-spin" />
-                                    <span>Generando vista previa HTML del correo...</span>
+                                <div className="py-12 text-center text-slate-500 text-xs font-semibold">
+                                    Cargando vista previa del correo...
                                 </div>
                             ) : (
-                                <iframe
-                                    srcDoc={mailHtml}
-                                    title={`Comprobante Correo Solicitud #${selectedSolicitud.id}`}
-                                    className="w-full h-full min-h-[520px] rounded-xl border-0 bg-white"
-                                />
+                                <div dangerouslySetInnerHTML={{ __html: mailHtml }} />
                             )}
                         </div>
 
-                        <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-slate-800">
+                        <div className="flex justify-end pt-2 border-t border-slate-800">
                             <button
-                                onClick={() => setShowMailModal(false)}
-                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition"
+                                onClick={() => { setShowMailModal(false); setSelectedSolicitud(null); }}
+                                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition"
                             >
-                                Cerrar Previsualización
+                                Cerrar
                             </button>
                         </div>
                     </div>

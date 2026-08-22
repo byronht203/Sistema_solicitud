@@ -40,7 +40,7 @@ Route::middleware(['auth'])->group(function () {
         if ($user && $user->esJefe()) {
             return redirect()->route('jefatura.dashboard');
         }
-        if ($user && $user->esContabilidad()) {
+        if ($user && ($user->esContabilidad() || $user->esCajaChica())) {
             return redirect()->route('contabilidad.dashboard');
         }
         return app(AdminDashboardController::class)->index();
@@ -60,6 +60,10 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('jefatura')->name('jefatura.')->group(function () {
         Route::get('/dashboard', [JefaturaController::class, 'dashboard'])->name('dashboard');
         Route::get('/solicitudes', [JefaturaController::class, 'solicitudes'])->name('solicitudes');
+        Route::get('/mis-solicitudes', [JefaturaController::class, 'misSolicitudes'])->name('mis-solicitudes');
+        Route::post('/solicitudes', [JefaturaController::class, 'storeSolicitud'])->name('solicitudes.store');
+        Route::post('/solicitudes/{solicitud}/update', [JefaturaController::class, 'updateSolicitud'])->name('solicitudes.update');
+        Route::delete('/solicitudes/{solicitud}', [JefaturaController::class, 'destroySolicitud'])->name('solicitudes.destroy');
         Route::post('/solicitudes/{solicitud}/aprobar', [JefaturaController::class, 'aprobar'])->name('solicitudes.aprobar');
         Route::post('/solicitudes/{solicitud}/observar', [JefaturaController::class, 'observar'])->name('solicitudes.observar');
         Route::post('/solicitudes/{solicitud}/rechazar', [JefaturaController::class, 'rechazar'])->name('solicitudes.rechazar');

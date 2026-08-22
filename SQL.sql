@@ -107,3 +107,11 @@ INSERT INTO empresas (nombre) VALUES
 ('Fralak SRL'),
 ('Dotmed SRL'),
 ('CID SRL');
+
+-- Roles base del sistema
+INSERT INTO roles (nombre, descripcion) VALUES
+('Administrador', 'Acceso total al sistema y gestión completa'),
+('Jefe', 'Revisión y aprobación de solicitudes de su área'),
+('Contabilidad', 'Procesamiento de pagos y desembolsos generales'),
+('Solicitante', 'Creación y seguimiento de solicitudes de pago'),
+('Caja Chica', 'Gestión y desembolso exclusivo de solicitudes de Caja Chica (Hasta 300 BOB)');

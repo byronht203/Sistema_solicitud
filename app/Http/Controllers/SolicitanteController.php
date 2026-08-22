@@ -61,8 +61,8 @@ class SolicitanteController extends Controller
         $jefes = User::with('empresas')->whereHas('rol', function ($q) {
             $q->whereIn('nombre', ['Jefe', 'Jefatura']);
         })->get();
-        $contabilidades = User::with('empresas')->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+        $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
         })->get();
 
         return Inertia::render('Solicitante/Dashboard', [
@@ -121,8 +121,8 @@ class SolicitanteController extends Controller
         $jefes = User::with('empresas')->whereHas('rol', function ($q) {
             $q->whereIn('nombre', ['Jefe', 'Jefatura']);
         })->get();
-        $contabilidades = User::with('empresas')->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+        $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
         })->get();
 
         // Conteo de observadas que requieren acción del solicitante

@@ -153,12 +153,26 @@ class SolicitudEstadoMail extends Mailable
                 }
             }
 
-            // 2. Si el estado es "Aprobado_Jefatura", notificar a la persona de Contabilidad asignada o a los encargados de esa empresa
+            // 2. Si el estado es "Aprobado_Jefatura", notificar a la persona de Contabilidad/Caja Chica asignada o a los encargados de esa empresa
             if ($solicitud->estado === 'Aprobado_Jefatura') {
+                $isFralak = str_contains(strtolower($solicitud->empresa ? $solicitud->empresa->nombre : ''), 'fralak');
+                $isCajaChica = ($solicitud->tipo_solicitud === 'Caja Chica') || ($solicitud->moneda === 'BOB' && $solicitud->monto <= 300);
+
                 if ($solicitud->contabilidad) {
                     $correoConta = $solicitud->contabilidad->getCorreoCorporativoParaEmpresa($empresaId);
                     if ($correoConta) {
                         $destinatarios[] = $correoConta;
+                    }
+                } elseif ($isFralak && $isCajaChica) {
+                    // Notificar a la encargada de Caja Chica Fralak (Maribel Caero)
+                    $cajaUsers = User::whereHas('rol', function ($q) {
+                        $q->whereIn('nombre', ['Caja Chica', 'Cajachica']);
+                    })->get();
+                    foreach ($cajaUsers as $c) {
+                        $correo = $c->getCorreoCorporativoParaEmpresa($empresaId);
+                        if ($correo) {
+                            $destinatarios[] = $correo;
+                        }
                     }
                 } else {
                     $contaUsers = User::whereHas('rol', function ($q) {

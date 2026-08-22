@@ -26,7 +26,7 @@ import {
     Coins
 } from 'lucide-react';
 
-export default function Index({ solicitudes, empresas = [], proveedores = [], badgePorPagar = 0, badgeCajaChica = 0, badgeRegulares = 0, filters = {} }) {
+export default function Index({ solicitudes, empresas = [], proveedores = [], badgePorPagar = 0, badgeCajaChica = 0, badgeRegulares = 0, isCajaChica = false, filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
     const [estado, setEstado] = useState(filters.estado || 'Aprobado_Jefatura');
     const [tipoMonto, setTipoMonto] = useState(filters.tipo_monto || '');
@@ -179,16 +179,18 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
     };
 
     return (
-        <ContabilidadLayout title="Solicitudes por Pagar y Gestión Contable" badgePorPagar={badgePorPagar}>
+        <ContabilidadLayout title={isCajaChica ? "Solicitudes Caja Chica (Fralak SRL)" : "Solicitudes por Pagar y Gestión Contable"} badgePorPagar={badgePorPagar}>
             {/* Top Title & Filters Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                         <CreditCard className="w-6 h-6 text-emerald-400" />
-                        <span>Gestión de Pagos y Desembolsos</span>
+                        <span>{isCajaChica ? 'Bandeja de Pagos - Caja Chica Fralak SRL' : 'Gestión de Pagos y Desembolsos'}</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
-                        Revisa los datos bancarios, adjuntos de respaldo y procesa desembolsos separados por **Caja Chica (≤ 300 BOB)** o **Pagos Regulares**.
+                        {isCajaChica
+                            ? 'Revisa y procesa los desembolsos de Caja Chica exclusivamente para Fralak SRL (Monto máximo 300 BOB).'
+                            : 'Revisa los datos bancarios, adjuntos de respaldo y procesa desembolsos separados por Caja Chica (≤ 300 BOB) o Pagos Regulares.'}
                     </p>
                 </div>
             </div>
@@ -204,41 +206,45 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                     }`}
                 >
                     <Clock className="w-4 h-4" />
-                    <span>Todas por Desembolsar</span>
+                    <span>{isCajaChica ? 'Caja Chica por Pagar' : 'Todas por Desembolsar'}</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-amber-200">
                         {badgePorPagar}
                     </span>
                 </button>
 
-                <button
-                    onClick={() => handleTabChange('Aprobado_Jefatura', 'caja_chica')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
-                        tipoMonto === 'caja_chica'
-                            ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 font-extrabold'
-                            : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                    }`}
-                >
-                    <Coins className="w-4 h-4 text-cyan-400" />
-                    <span>Caja Chica (≤ 300 BOB)</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-cyan-200">
-                        {badgeCajaChica}
-                    </span>
-                </button>
+                {!isCajaChica && (
+                    <button
+                        onClick={() => handleTabChange('Aprobado_Jefatura', 'caja_chica')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+                            tipoMonto === 'caja_chica'
+                                ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 font-extrabold'
+                                : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                        }`}
+                    >
+                        <Coins className="w-4 h-4" />
+                        <span>Caja Chica (≤ 300 BOB)</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-cyan-200">
+                            {badgeCajaChica}
+                        </span>
+                    </button>
+                )}
 
-                <button
-                    onClick={() => handleTabChange('Aprobado_Jefatura', 'regular')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
-                        tipoMonto === 'regular'
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 font-extrabold'
-                            : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                    }`}
-                >
-                    <CreditCard className="w-4 h-4 text-indigo-300" />
-                    <span>Regulares (&gt; 300 BOB / USD)</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-indigo-200">
-                        {badgeRegulares}
-                    </span>
-                </button>
+                {!isCajaChica && (
+                    <button
+                        onClick={() => handleTabChange('Aprobado_Jefatura', 'regular')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+                            tipoMonto === 'regular'
+                                ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-extrabold'
+                                : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                        }`}
+                    >
+                        <CreditCard className="w-4 h-4" />
+                        <span>Regulares (&gt; 300 BOB / USD)</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-indigo-200">
+                            {badgeRegulares}
+                        </span>
+                    </button>
+                )}
 
                 <button
                     onClick={() => handleTabChange('Pagado', '')}
@@ -278,7 +284,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
 
             {/* Filter Search Form */}
             <form onSubmit={handleFilterSubmit} className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl mb-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCajaChica ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-3`}>
                     <div className="relative">
                         <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                         <input
@@ -290,17 +296,19 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         />
                     </div>
 
-                    <div>
-                        <select
-                            value={tipoMonto}
-                            onChange={(e) => setTipoMonto(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-semibold"
-                        >
-                            <option value="">Tipo de Monto (Todos)</option>
-                            <option value="caja_chica">Caja Chica (≤ 300 BOB)</option>
-                            <option value="regular">Regular / Mayor (&gt; 300 BOB o USD)</option>
-                        </select>
-                    </div>
+                    {!isCajaChica && (
+                        <div>
+                            <select
+                                value={tipoMonto}
+                                onChange={(e) => setTipoMonto(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-semibold"
+                            >
+                                <option value="">Tipo de Monto (Todos)</option>
+                                <option value="caja_chica">Caja Chica (≤ 300 BOB)</option>
+                                <option value="regular">Regular / Mayor (&gt; 300 BOB o USD)</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div>
                         <select
@@ -315,17 +323,19 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         </select>
                     </div>
 
-                    <div>
-                        <select
-                            value={moneda}
-                            onChange={(e) => setMoneda(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                        >
-                            <option value="">Todas las Monedas</option>
-                            <option value="BOB">BOB (Bolivianos)</option>
-                            <option value="USD">USD (Dólares)</option>
-                        </select>
-                    </div>
+                    {!isCajaChica && (
+                        <div>
+                            <select
+                                value={moneda}
+                                onChange={(e) => setMoneda(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                            >
+                                <option value="">Todas las Monedas</option>
+                                <option value="BOB">BOB (Bolivianos)</option>
+                                <option value="USD">USD (Dólares)</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                         <button

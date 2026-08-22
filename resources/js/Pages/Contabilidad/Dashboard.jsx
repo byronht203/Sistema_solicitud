@@ -24,7 +24,7 @@ import {
     Mail
 } from 'lucide-react';
 
-export default function Dashboard({ stats, solicitudesCajaChica = [], solicitudesRegulares = [], ultimosPagos = [] }) {
+export default function Dashboard({ stats, solicitudesCajaChica = [], solicitudesRegulares = [], ultimosPagos = [], isCajaChica = false }) {
     const [selectedSolicitud, setSelectedSolicitud] = useState(null);
     const [showPayModal, setShowPayModal] = useState(false);
     const [showBankModal, setShowBankModal] = useState(false);
@@ -89,7 +89,7 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
     };
 
     return (
-        <ContabilidadLayout title="Dashboard Contable y Desembolsos" badgePorPagar={stats.pendientesPagoCount}>
+        <ContabilidadLayout title={isCajaChica ? "Dashboard Caja Chica (Fralak SRL)" : "Dashboard Contable y Desembolsos"} badgePorPagar={stats.pendientesPagoCount}>
             {/* Header Banner */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 border border-emerald-500/20 p-6 md:p-8 shadow-2xl mb-8">
                 <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
@@ -97,13 +97,15 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 mb-3">
                             <Landmark className="w-3.5 h-3.5" />
-                            Tesorería Médica • Red Médica Corporativa
+                            {isCajaChica ? 'Tesorería • Caja Chica Fralak SRL (Hasta 300 BOB)' : 'Tesorería Médica • Red Médica Corporativa'}
                         </div>
                         <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                            Desembolsos de Fondos & Compras Hospitalarias
+                            {isCajaChica ? 'Desembolsos y Pagos de Caja Chica' : 'Desembolsos de Fondos & Compras Hospitalarias'}
                         </h2>
                         <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-                            Control contable de pagos y transferencias a proveedores de tecnología y equipamiento hospitalario para Fralak, Dotmed y CID.
+                            {isCajaChica
+                                ? 'Bandeja de auditoría y pago exclusivo para solicitudes de Caja Chica de Fralak SRL (Monto máximo 300 BOB).'
+                                : 'Control contable de pagos y transferencias a proveedores de tecnología y equipamiento hospitalario para Fralak, Dotmed y CID.'}
                         </p>
                     </div>
 
@@ -116,19 +118,21 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
                             <span>Caja Chica ({stats.cajaChicaPendientesCount})</span>
                         </Link>
 
-                        <Link
-                            href={route('contabilidad.solicitudes', { tipo_monto: 'regular' })}
-                            className="px-4 py-2.5 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-300 font-bold text-xs flex items-center gap-2 transition"
-                        >
-                            <CreditCard className="w-4 h-4 text-indigo-400" />
-                            <span>Regulares ({stats.regularesPendientesCount})</span>
-                        </Link>
+                        {!isCajaChica && (
+                            <Link
+                                href={route('contabilidad.solicitudes', { tipo_monto: 'regular' })}
+                                className="px-4 py-2.5 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-300 font-bold text-xs flex items-center gap-2 transition"
+                            >
+                                <CreditCard className="w-4 h-4 text-indigo-400" />
+                                <span>Regulares ({stats.regularesPendientesCount})</span>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Metric KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCajaChica ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5 mb-8`}>
                 {/* 1. Caja Chica (<= 300 BOB) */}
                 <div className="rounded-3xl bg-slate-900 border border-cyan-500/30 p-5 shadow-xl relative overflow-hidden group hover:border-cyan-500/50 transition duration-300">
                     <div className="flex items-center justify-between">
@@ -144,44 +148,46 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
                             {stats.cajaChicaPendientesCount}
                         </div>
                         <p className="text-xs text-slate-400 mt-1">
-                            Pagos pequeños en cola
+                            Pagos menores en cola de desembolso
                         </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-semibold text-cyan-300">
-                        <span>Total acumulado:</span>
+                        <span>Total por pagar:</span>
                         <span className="font-bold text-white">Bs. {stats.cajaChicaMontoBOB.toLocaleString('es-BO', { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
-                {/* 2. Solicitudes Regulares (> 300 BOB / USD) */}
-                <div className="rounded-3xl bg-slate-900 border border-indigo-500/30 p-5 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition duration-300">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                            Regulares / Mayores
-                        </span>
-                        <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold">
-                            <CreditCard className="w-5 h-5" />
+                {/* 2. Solicitudes Regulares (> 300 BOB / USD) - OCULTADO ESTRICTAMENTE PARA CAJA CHICA */}
+                {!isCajaChica && (
+                    <div className="rounded-3xl bg-slate-900 border border-indigo-500/30 p-5 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition duration-300">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                Regulares / Mayores (&gt; 300 BOB / USD)
+                            </span>
+                            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold">
+                                <CreditCard className="w-5 h-5" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="text-3xl font-extrabold text-white">
+                                {stats.regularesPendientesCount}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Pagos mayores a 300 BOB o USD
+                            </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>USD Pendiente:</span>
+                            <span className="font-bold text-slate-200">$ {stats.regularesMontoUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
                     </div>
-                    <div className="mt-4">
-                        <div className="text-3xl font-extrabold text-white">
-                            {stats.regularesPendientesCount}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Pagos mayores a 300 BOB o USD
-                        </p>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                        <span>USD Pendiente:</span>
-                        <span className="font-bold text-slate-200">$ {stats.regularesMontoUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                </div>
+                )}
 
                 {/* 3. Total Pagadas */}
                 <div className="rounded-3xl bg-slate-900 border border-emerald-500/30 p-5 shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition duration-300">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                            Total Pagadas
+                            {isCajaChica ? 'Caja Chica Pagadas' : 'Total Pagadas'}
                         </span>
                         <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
                             <CheckCircle2 className="w-5 h-5" />
@@ -192,11 +198,11 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
                             {stats.pagadasCount}
                         </div>
                         <p className="text-xs text-slate-400 mt-1">
-                            Desembolsos completados
+                            {isCajaChica ? 'Desembolsos completados de Caja Chica' : 'Desembolsos completados'}
                         </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                        <span>Pagado BOB:</span>
+                        <span>Total Pagado BOB:</span>
                         <span className="font-bold text-emerald-400">Bs. {stats.montoPagadoBOB.toLocaleString('es-BO', { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
@@ -336,115 +342,117 @@ export default function Dashboard({ stats, solicitudesCajaChica = [], solicitude
                 )}
             </div>
 
-            {/* BLOQUE 2: Solicitudes REGULARES / MAYORES (> 300 BOB / USD) */}
-            <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-xl mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-indigo-400 animate-pulse" />
-                            <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                                <CreditCard className="w-5 h-5 text-indigo-400" />
-                                Solicitudes Regulares / Mayores (&gt; 300 BOB o USD)
-                            </h3>
+            {/* BLOQUE 2: Solicitudes REGULARES / MAYORES (> 300 BOB / USD) - Solo visible para Contabilidad General */}
+            {!isCajaChica && (
+                <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-xl mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-3 h-3 rounded-full bg-indigo-400 animate-pulse" />
+                                <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                                    <CreditCard className="w-5 h-5 text-indigo-400" />
+                                    Solicitudes Regulares / Mayores (&gt; 300 BOB o USD)
+                                </h3>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                Desembolsos mayores requeridos para contrataciones y pagos principales a proveedores
+                            </p>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                            Desembolsos mayores requeridos para contrataciones y pagos principales a proveedores
-                        </p>
+
+                        <Link
+                            href={route('contabilidad.solicitudes', { estado: 'Aprobado_Jefatura', tipo_monto: 'regular' })}
+                            className="px-4 py-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-indigo-300 text-xs font-bold border border-indigo-800 transition self-start sm:self-auto flex items-center gap-1.5"
+                        >
+                            <span>Ver Regulares ({stats.regularesPendientesCount})</span>
+                            <ArrowUpRight className="w-4 h-4" />
+                        </Link>
                     </div>
 
-                    <Link
-                        href={route('contabilidad.solicitudes', { estado: 'Aprobado_Jefatura', tipo_monto: 'regular' })}
-                        className="px-4 py-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-indigo-300 text-xs font-bold border border-indigo-800 transition self-start sm:self-auto flex items-center gap-1.5"
-                    >
-                        <span>Ver Regulares ({stats.regularesPendientesCount})</span>
-                        <ArrowUpRight className="w-4 h-4" />
-                    </Link>
-                </div>
-
-                {solicitudesRegulares.length === 0 ? (
-                    <div className="text-center py-8 px-4 rounded-2xl bg-slate-950/50 border border-slate-800/60 text-xs text-slate-400">
-                        No hay solicitudes regulares mayores pendientes de pago.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs text-slate-300">
-                            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th className="px-4 py-3 rounded-l-xl">ID / Empresa</th>
-                                    <th className="px-4 py-3">Solicitante</th>
-                                    <th className="px-4 py-3">Proveedor & Datos Bancarios</th>
-                                    <th className="px-4 py-3">Monto & Moneda</th>
-                                    <th className="px-4 py-3 text-right rounded-r-xl">Acciones de Pago</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/60">
-                                {solicitudesRegulares.map((solicitud) => (
-                                    <tr key={solicitud.id} className="hover:bg-slate-800/40 transition">
-                                        <td className="px-4 py-3.5">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-extrabold text-indigo-400">#{solicitud.id}</span>
-                                                <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[11px] font-bold border border-slate-700">
-                                                    {solicitud.empresa?.nombre}
-                                                </span>
-                                            </div>
-                                            <div className="text-[11px] text-slate-400 mt-1 line-clamp-1 max-w-xs" title={solicitud.motivo_descripcion}>
-                                                {solicitud.motivo_descripcion}
-                                            </div>
-                                        </td>
-
-                                        <td className="px-4 py-3.5">
-                                            <div className="font-semibold text-slate-200">
-                                                {solicitud.solicitante?.nombre_completo || solicitud.solicitante?.nombre}
-                                            </div>
-                                            <div className="text-[10px] text-slate-400">
-                                                {solicitud.solicitante?.cargo || 'Solicitante'}
-                                            </div>
-                                        </td>
-
-                                        <td className="px-4 py-3.5">
-                                            <div className="font-bold text-white flex items-center gap-1.5">
-                                                <span>{solicitud.proveedor?.nombre_razon_social}</span>
-                                            </div>
-                                            <div className="text-[11px] text-emerald-400 font-mono mt-0.5">
-                                                {solicitud.proveedor?.banco}: <span className="font-bold">{solicitud.proveedor?.numero_cuenta}</span>
-                                            </div>
-                                        </td>
-
-                                        <td className="px-4 py-3.5 whitespace-nowrap">
-                                            <div className="text-sm font-extrabold text-white">
-                                                {solicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(solicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
-                                            </div>
-                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                                                {solicitud.modalidad_pago}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <button
-                                                    onClick={() => openMailPreviewModal(solicitud)}
-                                                    className="p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white transition border border-indigo-500/30"
-                                                    title="Ver Comprobante de Correo Enviado"
-                                                >
-                                                    <Mail className="w-4 h-4" />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => openPayModal(solicitud)}
-                                                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4" />
-                                                    <span>Procesar Pago</span>
-                                                </button>
-                                            </div>
-                                        </td>
+                    {solicitudesRegulares.length === 0 ? (
+                        <div className="text-center py-8 px-4 rounded-2xl bg-slate-950/50 border border-slate-800/60 text-xs text-slate-400">
+                            No hay solicitudes regulares mayores pendientes de pago.
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-slate-300">
+                                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th className="px-4 py-3 rounded-l-xl">ID / Empresa</th>
+                                        <th className="px-4 py-3">Solicitante</th>
+                                        <th className="px-4 py-3">Proveedor & Datos Bancarios</th>
+                                        <th className="px-4 py-3">Monto & Moneda</th>
+                                        <th className="px-4 py-3 text-right rounded-r-xl">Acciones de Pago</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60">
+                                    {solicitudesRegulares.map((solicitud) => (
+                                        <tr key={solicitud.id} className="hover:bg-slate-800/40 transition">
+                                            <td className="px-4 py-3.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-extrabold text-indigo-400">#{solicitud.id}</span>
+                                                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 text-[11px] font-bold border border-slate-700">
+                                                        {solicitud.empresa?.nombre}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-400 mt-1 line-clamp-1 max-w-xs" title={solicitud.motivo_descripcion}>
+                                                    {solicitud.motivo_descripcion}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3.5">
+                                                <div className="font-semibold text-slate-200">
+                                                    {solicitud.solicitante?.nombre_completo || solicitud.solicitante?.nombre}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400">
+                                                    {solicitud.solicitante?.cargo || 'Solicitante'}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3.5">
+                                                <div className="font-bold text-white flex items-center gap-1.5">
+                                                    <span>{solicitud.proveedor?.nombre_razon_social}</span>
+                                                </div>
+                                                <div className="text-[11px] text-emerald-400 font-mono mt-0.5">
+                                                    {solicitud.proveedor?.banco}: <span className="font-bold">{solicitud.proveedor?.numero_cuenta}</span>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3.5 whitespace-nowrap">
+                                                <div className="text-sm font-extrabold text-white">
+                                                    {solicitud.moneda === 'BOB' ? 'Bs.' : '$'} {parseFloat(solicitud.monto).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                                                </div>
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                                                    {solicitud.modalidad_pago}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => openMailPreviewModal(solicitud)}
+                                                        className="p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white transition border border-indigo-500/30"
+                                                        title="Ver Comprobante de Correo Enviado"
+                                                    >
+                                                        <Mail className="w-4 h-4" />
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => openPayModal(solicitud)}
+                                                        className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
+                                                    >
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                        <span>Procesar Pago</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Ultimos Pagos Historial */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">

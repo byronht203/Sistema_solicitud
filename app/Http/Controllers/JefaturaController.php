@@ -9,11 +9,12 @@ use App\Models\User;
 use App\Mail\SolicitudEstadoMail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class JefaturaController extends Controller
 {
     /**
-     * Helper para obtener el Query base filtrado estrictamente por el Jefe autenticado
+     * Helper para obtener el Query base filtrado por el Jefe autenticado
      */
     private function getJefaturaQuery()
     {
@@ -22,12 +23,13 @@ class JefaturaController extends Controller
             return Solicitud::query();
         }
 
-        $jefeId = $jefeUser->id;
-        $empresaIds = $jefeUser->empresas()->pluck('empresas.id')->toArray();
+        $jefeId = $jefeUser ? $jefeUser->id : 0;
+        $empresaIds = $jefeUser ? $jefeUser->empresas()->pluck('empresas.id')->toArray() : [];
 
         return Solicitud::where(function ($q) use ($jefeId, $empresaIds) {
             $q->where('jefe_id', $jefeId)
-              ->orWhere('revisado_por_jefe_id', $jefeId);
+              ->orWhere('revisado_por_jefe_id', $jefeId)
+              ->orWhere('solicitante_id', $jefeId);
 
             if (!empty($empresaIds)) {
                 $q->orWhere(function ($subQ) use ($empresaIds) {
@@ -43,25 +45,33 @@ class JefaturaController extends Controller
      */
     public function dashboard()
     {
+        $jefeUser = auth()->user();
+        $jefeId = $jefeUser ? $jefeUser->id : 0;
         $baseQuery = $this->getJefaturaQuery();
 
-        // 1. Métricas de solicitudes por estado asignadas a este jefe
-        $pendientesCount = (clone $baseQuery)->where('estado', 'Pendiente')->count();
-        $aprobadasCount = (clone $baseQuery)->where('estado', 'Aprobado_Jefatura')->count();
-        $pagadasCount = (clone $baseQuery)->where('estado', 'Pagado')->count();
-        $observadasCount = (clone $baseQuery)->where('estado', 'Observado')->count();
-        $rechazadasCount = (clone $baseQuery)->where('estado', 'Rechazado')->count();
+        // 1. Solicitudes por aprobar (creadas por su equipo de solicitantes)
+        $pendientesCount = (clone $baseQuery)->where('estado', 'Pendiente')
+            ->where('solicitante_id', '!=', $jefeId)
+            ->count();
 
-        // 2. Montos pendientes de aprobación por el jefe
+        // 2. Solicitudes creadas por el propio Jefe
+        $misSolicitudesCount = Solicitud::where('solicitante_id', $jefeId)->count();
+        $misPendientesPagoCount = Solicitud::where('solicitante_id', $jefeId)->where('estado', 'Aprobado_Jefatura')->count();
+        $misPagadasCount = Solicitud::where('solicitante_id', $jefeId)->where('estado', 'Pagado')->count();
+        $misObservadasCount = Solicitud::where('solicitante_id', $jefeId)->where('estado', 'Observado')->count();
+
+        // 3. Montos pendientes de aprobación de equipo
         $montoPendienteBOB = (clone $baseQuery)->where('estado', 'Pendiente')
+            ->where('solicitante_id', '!=', $jefeId)
             ->where('moneda', 'BOB')
             ->sum('monto');
 
         $montoPendienteUSD = (clone $baseQuery)->where('estado', 'Pendiente')
+            ->where('solicitante_id', '!=', $jefeId)
             ->where('moneda', 'USD')
             ->sum('monto');
 
-        // 3. Montos ya aprobados por jefatura
+        // 4. Montos ya aprobados por jefatura
         $montoAprobadoBOB = (clone $baseQuery)->whereIn('estado', ['Aprobado_Jefatura', 'Pagado'])
             ->where('moneda', 'BOB')
             ->sum('monto');
@@ -70,52 +80,73 @@ class JefaturaController extends Controller
             ->where('moneda', 'USD')
             ->sum('monto');
 
-        // 4. Solicitudes prioritarias pendientes de aprobación (Estado: Pendiente)
-        $solicitudesPorAprobar = (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'proveedor'])
+        // 5. Solicitudes prioritarias de equipo pendientes de aprobación (Estado: Pendiente)
+        $solicitudesPorAprobar = (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor'])
             ->where('estado', 'Pendiente')
+            ->where('solicitante_id', '!=', $jefeId)
             ->orderBy('fecha_solicitud', 'asc')
             ->take(8)
             ->get();
 
-        // 5. Últimas solicitudes revisadas por el jefe
+        // 6. Mis Solicitudes realizadas recientemente por este Jefe
+        $misSolicitudesRecientes = Solicitud::with(['empresa', 'contabilidad', 'proveedor', 'procesadoPorConta'])
+            ->where('solicitante_id', $jefeId)
+            ->orderBy('id', 'desc')
+            ->take(6)
+            ->get();
+
+        // 7. Últimas revisiones hechas por el jefe a solicitudes de terceros
         $ultimasRevisiones = (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'proveedor', 'revisadoPorJefe'])
+            ->where('solicitante_id', '!=', $jefeId)
             ->whereIn('estado', ['Aprobado_Jefatura', 'Observado', 'Rechazado'])
             ->orderBy('updated_at', 'desc')
             ->take(6)
             ->get();
 
-        // 6. Conteo de proveedores
-        $totalProveedores = Proveedor::count();
+        $empresas = Empresa::all();
+        $proveedores = Proveedor::all();
+        $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+        })->get();
 
         return Inertia::render('Jefatura/Dashboard', [
             'stats' => [
                 'pendientesCount' => $pendientesCount,
-                'aprobadasCount' => $aprobadasCount,
-                'pagadasCount' => $pagadasCount,
-                'observadasCount' => $observadasCount,
-                'rechazadasCount' => $rechazadasCount,
+                'misSolicitudesCount' => $misSolicitudesCount,
+                'misPendientesPagoCount' => $misPendientesPagoCount,
+                'misPagadasCount' => $misPagadasCount,
+                'misObservadasCount' => $misObservadasCount,
                 'montoPendienteBOB' => (float)$montoPendienteBOB,
                 'montoPendienteUSD' => (float)$montoPendienteUSD,
                 'montoAprobadoBOB' => (float)$montoAprobadoBOB,
                 'montoAprobadoUSD' => (float)$montoAprobadoUSD,
-                'totalProveedores' => $totalProveedores,
+                'totalProveedores' => Proveedor::count(),
             ],
             'solicitudesPorAprobar' => $solicitudesPorAprobar,
+            'misSolicitudesRecientes' => $misSolicitudesRecientes,
             'ultimasRevisiones' => $ultimasRevisiones,
+            'empresas' => $empresas,
+            'proveedores' => $proveedores,
+            'contabilidades' => $contabilidades,
         ]);
     }
 
     /**
-     * Listado y bandeja de aprobación de solicitudes para el Jefe autenticado
+     * Bandeja de Aprobaciones: Exclusivamente solicitudes enviadas por el equipo que requieren revisión del Jefe
      */
     public function solicitudes(Request $request)
     {
+        $jefeUser = auth()->user();
+        $jefeId = $jefeUser ? $jefeUser->id : 0;
+        $estadoFiltro = $request->get('estado', 'Pendiente');
+
         $query = $this->getJefaturaQuery()
-            ->with(['empresa', 'solicitante', 'jefe', 'proveedor', 'revisadoPorJefe', 'procesadoPorConta'])
+            ->where('solicitante_id', '!=', $jefeId)
+            ->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe', 'procesadoPorConta'])
             ->orderBy('id', 'desc');
 
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->estado);
+        if ($estadoFiltro !== 'todas') {
+            $query->where('estado', $estadoFiltro);
         }
 
         if ($request->filled('empresa_id')) {
@@ -145,20 +176,215 @@ class JefaturaController extends Controller
         $empresas = Empresa::all();
         $proveedores = Proveedor::all();
 
-        // Conteo de solicitudes pendientes asignadas para el Badge
-        $badgePendientes = (clone $this->getJefaturaQuery())->where('estado', 'Pendiente')->count();
+        // Conteo de badges para aprobaciones de equipo
+        $baseTeamQuery = (clone $this->getJefaturaQuery())->where('solicitante_id', '!=', $jefeId);
+        $badgePorAprobar = (clone $baseTeamQuery)->where('estado', 'Pendiente')->count();
+        $badgeAprobadas = (clone $baseTeamQuery)->where('estado', 'Aprobado_Jefatura')->count();
+        $badgeObservadas = (clone $baseTeamQuery)->where('estado', 'Observado')->count();
+        $badgeMisSolicitudes = Solicitud::where('solicitante_id', $jefeId)->count();
 
         return Inertia::render('Jefatura/Solicitudes/Index', [
             'solicitudes' => $solicitudes,
             'empresas' => $empresas,
             'proveedores' => $proveedores,
-            'badgePendientes' => $badgePendientes,
+            'badgePorAprobar' => $badgePorAprobar,
+            'badgeAprobadas' => $badgeAprobadas,
+            'badgeObservadas' => $badgeObservadas,
+            'badgeMisSolicitudes' => $badgeMisSolicitudes,
+            'activeEstado' => $estadoFiltro,
             'filters' => $request->only(['estado', 'empresa_id', 'moneda', 'search']),
         ]);
     }
 
     /**
-     * APROBAR Solicitud de pago (Cambia estado a Aprobado_Jefatura y notifica por correo)
+     * Bandeja de Mis Solicitudes: Exclusivamente las solicitudes creadas directamente por este Jefe
+     */
+    public function misSolicitudes(Request $request)
+    {
+        $jefeUser = auth()->user();
+        $jefeId = $jefeUser ? $jefeUser->id : 0;
+        $estadoFiltro = $request->get('estado', 'todas');
+
+        $query = Solicitud::where('solicitante_id', $jefeId)
+            ->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe', 'procesadoPorConta'])
+            ->orderBy('id', 'desc');
+
+        if ($estadoFiltro !== 'todas') {
+            $query->where('estado', $estadoFiltro);
+        }
+
+        if ($request->filled('empresa_id')) {
+            $query->where('empresa_id', $request->empresa_id);
+        }
+
+        if ($request->filled('moneda')) {
+            $query->where('moneda', $request->moneda);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('motivo_descripcion', 'like', "%{$search}%")
+                  ->orWhereHas('proveedor', function ($pq) use ($search) {
+                      $pq->where('nombre_razon_social', 'like', "%{$search}%")
+                        ->orWhere('nit_ci', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $solicitudes = $query->paginate(12)->withQueryString();
+        $empresas = Empresa::all();
+        $proveedores = Proveedor::all();
+        $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+        })->get();
+
+        // Badges de Mis Solicitudes
+        $baseMisQuery = Solicitud::where('solicitante_id', $jefeId);
+        $badgeTodas = (clone $baseMisQuery)->count();
+        $badgeEnCola = (clone $baseMisQuery)->where('estado', 'Aprobado_Jefatura')->count();
+        $badgePagadas = (clone $baseMisQuery)->where('estado', 'Pagado')->count();
+        $badgeObservadas = (clone $baseMisQuery)->where('estado', 'Observado')->count();
+        $badgePorAprobar = (clone $this->getJefaturaQuery())->where('solicitante_id', '!=', $jefeId)->where('estado', 'Pendiente')->count();
+
+        return Inertia::render('Jefatura/MisSolicitudes/Index', [
+            'solicitudes' => $solicitudes,
+            'empresas' => $empresas,
+            'proveedores' => $proveedores,
+            'contabilidades' => $contabilidades,
+            'badgeTodas' => $badgeTodas,
+            'badgeEnCola' => $badgeEnCola,
+            'badgePagadas' => $badgePagadas,
+            'badgeObservadas' => $badgeObservadas,
+            'badgePorAprobar' => $badgePorAprobar,
+            'activeEstado' => $estadoFiltro,
+            'filters' => $request->only(['estado', 'empresa_id', 'moneda', 'search']),
+        ]);
+    }
+
+    /**
+     * Crear una solicitud emitida directamente por el Jefe (Caja Chica o Regular)
+     */
+    public function storeSolicitud(Request $request)
+    {
+        $validated = $request->validate([
+            'empresa_id' => 'required|exists:empresas,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
+            'contabilidad_id' => 'required|exists:usuarios,id',
+            'proveedor_id' => 'required|exists:proveedores,id',
+            'motivo_descripcion' => 'required|string|min:5',
+            'monto' => 'required|numeric|min:0.01',
+            'moneda' => 'required|in:BOB,USD',
+            'tipo_documento' => 'required|in:Factura,Recibo,Contrato,Otro',
+            'emite_factura' => 'required|boolean',
+            'modalidad_pago' => 'required|in:Transferencia,Cheque,Efectivo,QR',
+            'fecha_solicitud' => 'required|date',
+            'archivo_respaldo' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $filePath = null;
+        if ($request->hasFile('archivo_respaldo')) {
+            $filePath = $request->file('archivo_respaldo')->store('respaldos', 'public');
+        }
+
+        $jefeUser = auth()->user();
+
+        $solicitud = Solicitud::create([
+            'empresa_id' => $validated['empresa_id'],
+            'solicitante_id' => $jefeUser->id,
+            'tipo_solicitud' => $validated['tipo_solicitud'] ?? 'Pago a Proveedor',
+            'jefe_id' => $jefeUser->id,
+            'revisado_por_jefe_id' => $jefeUser->id,
+            'contabilidad_id' => $validated['contabilidad_id'],
+            'proveedor_id' => $validated['proveedor_id'],
+            'motivo_descripcion' => $validated['motivo_descripcion'],
+            'monto' => $validated['monto'],
+            'moneda' => $validated['moneda'],
+            'tipo_documento' => $validated['tipo_documento'],
+            'emite_factura' => $validated['emite_factura'],
+            'modalidad_pago' => $validated['modalidad_pago'],
+            'fecha_solicitud' => $validated['fecha_solicitud'],
+            'archivo_respaldo_path' => $filePath,
+            'estado' => 'Aprobado_Jefatura',
+            'comentarios_revision' => 'Solicitud emitida y aprobada directamente por Jefatura (' . $jefeUser->nombre_completo . '). Lista para desembolso contable.',
+        ]);
+
+        // Notificar por correo directamente al encargado de Contabilidad / Caja Chica y al Jefe
+        SolicitudEstadoMail::notificarCambioEstado($solicitud);
+
+        return redirect()->back()->with('success', '¡Solicitud registrada y autorizada con éxito! Ha sido enviada directamente a Contabilidad para su desembolso.');
+    }
+
+    /**
+     * Actualizar / Subsanar una solicitud realizada por el Jefe
+     */
+    public function updateSolicitud(Request $request, Solicitud $solicitud)
+    {
+        $jefeUser = auth()->user();
+        if ($solicitud->solicitante_id !== $jefeUser->id && !$jefeUser->esAdmin()) {
+            return redirect()->back()->with('error', 'No tienes permiso para editar esta solicitud.');
+        }
+
+        $validated = $request->validate([
+            'empresa_id' => 'required|exists:empresas,id',
+            'tipo_solicitud' => 'nullable|string|max:50',
+            'contabilidad_id' => 'required|exists:usuarios,id',
+            'proveedor_id' => 'required|exists:proveedores,id',
+            'motivo_descripcion' => 'required|string|min:5',
+            'monto' => 'required|numeric|min:0.01',
+            'moneda' => 'required|in:BOB,USD',
+            'tipo_documento' => 'required|in:Factura,Recibo,Contrato,Otro',
+            'emite_factura' => 'required|boolean',
+            'modalidad_pago' => 'required|in:Transferencia,Cheque,Efectivo,QR',
+            'fecha_solicitud' => 'required|date',
+            'archivo_respaldo' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        if ($request->hasFile('archivo_respaldo')) {
+            if ($solicitud->archivo_respaldo_path) {
+                Storage::disk('public')->delete($solicitud->archivo_respaldo_path);
+            }
+            $validated['archivo_respaldo_path'] = $request->file('archivo_respaldo')->store('respaldos', 'public');
+        }
+
+        // Si estaba observada por contabilidad, al editarla vuelve a Aprobado_Jefatura
+        if ($solicitud->estado === 'Observado') {
+            $validated['estado'] = 'Aprobado_Jefatura';
+            $validated['comentarios_revision'] = 'Subsanado y re-aprobado por Jefatura: ' . now()->format('Y-m-d H:i');
+        }
+
+        $solicitud->update($validated);
+
+        // Notificar a contabilidad
+        SolicitudEstadoMail::notificarCambioEstado($solicitud);
+
+        return redirect()->back()->with('success', 'Solicitud actualizada correctamente y re-enviada a Contabilidad.');
+    }
+
+    /**
+     * Cancelar solicitud realizada por el Jefe
+     */
+    public function destroySolicitud(Solicitud $solicitud)
+    {
+        $jefeUser = auth()->user();
+        if ($solicitud->solicitante_id !== $jefeUser->id && !$jefeUser->esAdmin()) {
+            return redirect()->back()->with('error', 'No tienes permiso para eliminar esta solicitud.');
+        }
+
+        if ($solicitud->estado === 'Pagado') {
+            return redirect()->back()->with('error', 'No se puede eliminar una solicitud que ya fue pagada.');
+        }
+
+        if ($solicitud->archivo_respaldo_path) {
+            Storage::disk('public')->delete($solicitud->archivo_respaldo_path);
+        }
+
+        $solicitud->delete();
+        return redirect()->back()->with('success', 'Solicitud cancelada y eliminada correctamente.');
+    }
+
+    /**
+     * APROBAR Solicitud de pago de equipo (Cambia estado a Aprobado_Jefatura y notifica por correo)
      */
     public function aprobar(Request $request, Solicitud $solicitud)
     {

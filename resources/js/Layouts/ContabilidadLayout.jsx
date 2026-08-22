@@ -28,11 +28,17 @@ export default function ContabilidadLayout({ children, title, badgePorPagar = 0 
 
     const rolNombre = user.rol?.nombre?.toLowerCase() || '';
     const isAdmin = rolNombre === 'administrador' || rolNombre === 'admin';
+    const isCajaChica = rolNombre.includes('caja chica') || rolNombre.includes('cajachica');
 
     const contaNavigation = [
-        { name: 'Dashboard Contable', href: route('contabilidad.dashboard'), routeName: 'contabilidad.dashboard', icon: LayoutDashboard },
         { 
-            name: 'Solicitudes por Pagar', 
+            name: isCajaChica ? 'Dashboard Caja Chica' : 'Dashboard Contable', 
+            href: route('contabilidad.dashboard'), 
+            routeName: 'contabilidad.dashboard', 
+            icon: LayoutDashboard 
+        },
+        { 
+            name: isCajaChica ? 'Solicitudes Caja Chica' : 'Solicitudes por Pagar', 
             href: route('contabilidad.solicitudes'), 
             routeName: 'contabilidad.solicitudes', 
             icon: FileSpreadsheet,
@@ -68,7 +74,7 @@ export default function ContabilidadLayout({ children, title, badgePorPagar = 0 
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-            <Head title={title || 'Panel de Contabilidad'} />
+            <Head title={title || (isCajaChica ? 'Panel de Caja Chica' : 'Panel de Contabilidad')} />
 
             {/* Mobile Sidebar Backdrop */}
             {sidebarOpen && (
@@ -98,7 +104,7 @@ export default function ContabilidadLayout({ children, title, badgePorPagar = 0 
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-extrabold flex items-center gap-1">
                                 <Activity className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-                                Tesorería Médica
+                                {isCajaChica ? 'Caja Chica Fralak' : 'Tesorería Médica'}
                             </span>
                         </div>
                     </Link>

@@ -108,6 +108,16 @@ class User extends Authenticatable
         return $this->rol && in_array(strtolower($this->rol->nombre), ['contabilidad', 'conta']);
     }
 
+    public function esCajaChica()
+    {
+        return $this->rol && in_array(strtolower($this->rol->nombre), ['caja chica', 'cajachica']);
+    }
+
+    public function esContaOCajaChica()
+    {
+        return $this->esContabilidad() || $this->esCajaChica();
+    }
+
     public function esSolicitante()
     {
         return $this->rol && in_array(strtolower($this->rol->nombre), ['solicitante', 'empleado']);

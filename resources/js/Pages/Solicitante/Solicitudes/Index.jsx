@@ -119,6 +119,30 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
         return conta.correo;
     };
 
+    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
+        if (!empId) return contabilidades;
+        const selectedEmp = empresas.find((e) => e.id == empId);
+        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
+        const isFralak = empNombre.includes('fralak');
+        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
+
+        return contabilidades.filter((c) => {
+            const rol = (c.rol?.nombre || '').toLowerCase();
+            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
+
+            if (isFralak) {
+                if (isCajaChica) {
+                    return isUserCajaChica;
+                } else {
+                    return !isUserCajaChica;
+                }
+            } else {
+                // Dotmed y CID: NUNCA pueden seleccionar a Caja Chica de Fralak
+                return !isUserCajaChica;
+            }
+        });
+    };
+
     const handleFilterSubmit = (e) => {
         e?.preventDefault();
         router.get(
@@ -698,8 +722,10 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none font-semibold text-amber-300"
                                     >
                                         <option value="">Selecciona Contabilidad...</option>
-                                        {contabilidades.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.nombre_completo} ({c.cargo || c.rol?.nombre || 'Contabilidad'})</option>
+                                        {getFilteredContabilidades(createData.empresa_id, createData.tipo_solicitud, createData.monto, createData.moneda).map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.nombre_completo} ({c.rol?.nombre === 'Caja Chica' ? '🪙 Encargada Caja Chica Fralak' : (c.cargo || c.rol?.nombre || 'Contabilidad')})
+                                            </option>
                                         ))}
                                     </select>
                                     {getSelectedContaEmail(createData.contabilidad_id, createData.empresa_id) && (
@@ -979,8 +1005,10 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], je
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none font-semibold text-amber-300"
                                     >
                                         <option value="">Selecciona Contabilidad...</option>
-                                        {contabilidades.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.nombre_completo} ({c.cargo || c.rol?.nombre || 'Contabilidad'})</option>
+                                        {getFilteredContabilidades(editData.empresa_id, editData.tipo_solicitud, editData.monto, editData.moneda).map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.nombre_completo} ({c.rol?.nombre === 'Caja Chica' ? '🪙 Encargada Caja Chica Fralak' : (c.cargo || c.rol?.nombre || 'Contabilidad')})
+                                            </option>
                                         ))}
                                     </select>
                                     {getSelectedContaEmail(editData.contabilidad_id, editData.empresa_id) && (
