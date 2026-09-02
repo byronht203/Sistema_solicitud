@@ -19,3 +19,7 @@ yarn-error.log
 /.vscode
 ~$*
 *.tmp
+Credenciales*.txt
+Crendeciales*.txt
+Env_nube.txt
+admin_sol*

@@ -105,21 +105,31 @@ class User extends Authenticatable
 
     public function esContabilidad()
     {
-        return $this->rol && in_array(strtolower($this->rol->nombre), ['contabilidad', 'conta']);
+        return $this->rol && in_array(strtolower(trim($this->rol->nombre)), ['contabilidad', 'conta']);
     }
 
     public function esCajaChica()
     {
-        return $this->rol && in_array(strtolower($this->rol->nombre), ['caja chica', 'cajachica']);
+        return $this->rol && in_array(strtolower(trim($this->rol->nombre)), ['caja chica', 'cajachica']);
+    }
+
+    public function esContabilidadCajaChica()
+    {
+        return $this->rol && in_array(strtolower(trim($this->rol->nombre)), [
+            'contabilidad - caja chica',
+            'contabilidad-caja chica',
+            'contabilidad y caja chica',
+            'contabilidad - cajachica',
+        ]);
     }
 
     public function esContaOCajaChica()
     {
-        return $this->esContabilidad() || $this->esCajaChica();
+        return $this->esContabilidad() || $this->esCajaChica() || $this->esContabilidadCajaChica();
     }
 
     public function esSolicitante()
     {
-        return $this->rol && in_array(strtolower($this->rol->nombre), ['solicitante', 'empleado']);
+        return $this->rol && in_array(strtolower(trim($this->rol->nombre)), ['solicitante', 'empleado']);
     }
 }

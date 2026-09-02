@@ -53,6 +53,43 @@ export default function Index({
         comentarios_revision: '',
     });
 
+    const getEmpresaColorInfo = (empIdOrEmp) => {
+        let name = '';
+        if (typeof empIdOrEmp === 'object' && empIdOrEmp !== null) {
+            name = empIdOrEmp.nombre || '';
+        } else if (typeof empIdOrEmp === 'number' || typeof empIdOrEmp === 'string') {
+            const found = (empresas || []).find((e) => Number(e.id) === Number(empIdOrEmp));
+            name = found?.nombre || '';
+        }
+        const lower = name.toLowerCase();
+        if (lower.includes('fralak')) {
+            return {
+                textColor: 'text-rose-400',
+                hexColor: '#fb7185', // Rojo Vino
+                borderClass: 'border-rose-500/40 focus:ring-rose-500',
+            };
+        }
+        if (lower.includes('dotmed')) {
+            return {
+                textColor: 'text-teal-400',
+                hexColor: '#2dd4bf', // Verde Azulado
+                borderClass: 'border-teal-500/40 focus:ring-teal-500',
+            };
+        }
+        if (lower.includes('cid')) {
+            return {
+                textColor: 'text-sky-400',
+                hexColor: '#38bdf8', // Azul Petróleo
+                borderClass: 'border-sky-500/40 focus:ring-sky-500',
+            };
+        }
+        return {
+            textColor: 'text-emerald-400',
+            hexColor: '#34d399',
+            borderClass: 'border-slate-800 focus:ring-cyan-500',
+        };
+    };
+
     const handleFilterSubmit = (e) => {
         e?.preventDefault();
         router.get(
@@ -261,12 +298,26 @@ export default function Index({
                         <select
                             value={empresaId}
                             onChange={(e) => setEmpresaId(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                            className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(empresaId).borderClass} text-xs focus:ring-2 outline-none font-bold ${empresaId ? getEmpresaColorInfo(empresaId).textColor : 'text-slate-300'}`}
+                            style={empresaId ? { color: getEmpresaColorInfo(empresaId).hexColor } : {}}
                         >
-                            <option value="">Todas las Empresas</option>
-                            {empresas.map((emp) => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
+                            <option value="" style={{ color: '#cbd5e1', backgroundColor: '#020617' }}>Todas las Empresas</option>
+                            {empresas.map((emp) => {
+                                const itemColor = getEmpresaColorInfo(emp);
+                                return (
+                                    <option
+                                        key={emp.id}
+                                        value={emp.id}
+                                        style={{
+                                            color: itemColor.hexColor,
+                                            backgroundColor: '#020617',
+                                            fontWeight: '700',
+                                        }}
+                                    >
+                                        {emp.nombre}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 

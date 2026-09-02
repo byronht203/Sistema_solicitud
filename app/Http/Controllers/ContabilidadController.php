@@ -14,7 +14,10 @@ use Illuminate\Support\Facades\Storage;
 class ContabilidadController extends Controller
 {
     /**
-     * Helper para obtener el Query base filtrado por la persona de Contabilidad / Caja Chica autenticada
+     * Helper para obtener el Query base filtrado por el rol de Contabilidad autenticado
+     * - Caja Chica: Solo solicitudes <= 300 BOB de su empresa
+     * - Contabilidad: Solo solicitudes normales / mayores a 300 BOB (o USD) de sus empresas
+     * - Contabilidad - Caja Chica: Ambas (todas las solicitudes de sus empresas asignadas)
      */
     private function getContabilidadQuery()
     {
@@ -23,31 +26,29 @@ class ContabilidadController extends Controller
             return Solicitud::query();
         }
 
-        // Si el usuario es del rol Caja Chica (ej: Maribel Caero):
-        // Solo debe ver solicitudes de Caja Chica (<= 300 BOB) exclusivamente de Fralak SRL
-        if ($contaUser && $contaUser->esCajaChica()) {
-            $fralak = Empresa::where('nombre', 'like', '%Fralak%')->first();
-            $fralakId = $fralak ? $fralak->id : 1;
-
-            return Solicitud::where('empresa_id', $fralakId)
-                ->where('moneda', 'BOB')
-                ->where('monto', '<=', 300);
+        $empresaIds = $contaUser ? $contaUser->empresas()->pluck('empresas.id')->toArray() : [];
+        if (empty($empresaIds)) {
+            return Solicitud::whereRaw('1 = 0');
         }
 
-        $contaId = $contaUser ? $contaUser->id : 0;
-        $empresaIds = $contaUser ? $contaUser->empresas()->pluck('empresas.id')->toArray() : [];
+        // AISLAMIENTO ESTRICTO: Solo solicitudes pertenecientes a las empresas asignadas al usuario contable
+        $query = Solicitud::whereIn('empresa_id', $empresaIds);
 
-        return Solicitud::where(function ($q) use ($contaId, $empresaIds) {
-            $q->where('contabilidad_id', $contaId)
-              ->orWhere('procesado_por_conta_id', $contaId);
+        // 1. Rol Caja Chica exclusivo (ej: Maribel Caero): Solo <= 300 BOB
+        if ($contaUser && $contaUser->esCajaChica()) {
+            return $query->where('moneda', 'BOB')->where('monto', '<=', 300);
+        }
 
-            if (!empty($empresaIds)) {
-                $q->orWhere(function ($subQ) use ($empresaIds) {
-                    $subQ->whereNull('contabilidad_id')
-                         ->whereIn('empresa_id', $empresaIds);
-                });
-            }
-        });
+        // 2. Rol Contabilidad regular (ej: contabilidad@fralak.com.bo): Solo > 300 BOB o cualquier monto en USD
+        if ($contaUser && $contaUser->esContabilidad()) {
+            return $query->where(function ($q) {
+                $q->where('moneda', '!=', 'BOB')
+                  ->orWhere('monto', '>', 300);
+            });
+        }
+
+        // 3. Rol Contabilidad - Caja Chica (Ambas): Ve todas las solicitudes de sus empresas
+        return $query;
     }
 
     /**
@@ -57,6 +58,8 @@ class ContabilidadController extends Controller
     {
         $contaUser = auth()->user();
         $isCajaChica = $contaUser && $contaUser->esCajaChica();
+        $isSoloMayores = $contaUser && $contaUser->esContabilidad();
+        $isMixto = $contaUser && ($contaUser->esContabilidadCajaChica() || $contaUser->esAdmin());
         $baseQuery = $this->getContabilidadQuery();
 
         // 1. Métricas clave generales
@@ -66,12 +69,12 @@ class ContabilidadController extends Controller
         $pendientesJefeCount = (clone $baseQuery)->where('estado', 'Pendiente')->count();
 
         // 2. Métricas diferenciadas: Caja Chica (<= 300 BOB) vs Solicitudes Regulares (> 300 BOB / USD)
-        $cajaChicaPendientesCount = (clone $baseQuery)->where('estado', 'Aprobado_Jefatura')
+        $cajaChicaPendientesCount = $isSoloMayores ? 0 : (clone $baseQuery)->where('estado', 'Aprobado_Jefatura')
             ->where('moneda', 'BOB')
             ->where('monto', '<=', 300)
             ->count();
 
-        $cajaChicaMontoBOB = (clone $baseQuery)->where('estado', 'Aprobado_Jefatura')
+        $cajaChicaMontoBOB = $isSoloMayores ? 0 : (clone $baseQuery)->where('estado', 'Aprobado_Jefatura')
             ->where('moneda', 'BOB')
             ->where('monto', '<=', 300)
             ->sum('monto');
@@ -101,8 +104,8 @@ class ContabilidadController extends Controller
             ->where('moneda', 'USD')
             ->sum('monto');
 
-        // 4. Bloque 1: Solicitudes de Caja Chica por desembolsar (<= 300 BOB)
-        $solicitudesCajaChica = (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe'])
+        // 4. Bloque 1: Solicitudes de Caja Chica por desembolsar (<= 300 BOB) (Omitido para rol Contabilidad regular)
+        $solicitudesCajaChica = $isSoloMayores ? [] : (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe'])
             ->where('estado', 'Aprobado_Jefatura')
             ->where('moneda', 'BOB')
             ->where('monto', '<=', 300)
@@ -110,7 +113,7 @@ class ContabilidadController extends Controller
             ->take(8)
             ->get();
 
-        // 5. Bloque 2: Solicitudes Regulares / Mayores por desembolsar (> 300 BOB o USD)
+        // 5. Bloque 2: Solicitudes Regulares / Mayores por desembolsar (> 300 BOB o USD) (Omitido para rol Caja Chica)
         $solicitudesRegulares = $isCajaChica ? [] : (clone $baseQuery)->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe'])
             ->where('estado', 'Aprobado_Jefatura')
             ->where(function ($q) {
@@ -149,6 +152,8 @@ class ContabilidadController extends Controller
             'solicitudesRegulares' => $solicitudesRegulares,
             'ultimosPagos' => $ultimosPagos,
             'isCajaChica' => $isCajaChica,
+            'isSoloMayores' => $isSoloMayores,
+            'isMixto' => $isMixto,
         ]);
     }
 
@@ -159,6 +164,9 @@ class ContabilidadController extends Controller
     {
         $contaUser = auth()->user();
         $isCajaChica = $contaUser && $contaUser->esCajaChica();
+        $isSoloMayores = $contaUser && $contaUser->esContabilidad();
+        $isMixto = $contaUser && ($contaUser->esContabilidadCajaChica() || $contaUser->esAdmin());
+
         $query = $this->getContabilidadQuery()
             ->with(['empresa', 'solicitante', 'jefe', 'contabilidad', 'proveedor', 'revisadoPorJefe', 'procesadoPorConta'])
             ->orderBy('id', 'desc');
@@ -175,8 +183,8 @@ class ContabilidadController extends Controller
             $query->where('moneda', $request->moneda);
         }
 
-        // Filtro específico para Caja Chica vs Regulares (solo para Contabilidad General)
-        if (!$isCajaChica && $request->filled('tipo_monto')) {
+        // Filtro específico para Caja Chica vs Regulares (solo para rol Mixto / Admin que ve ambas)
+        if ($isMixto && $request->filled('tipo_monto')) {
             if ($request->tipo_monto === 'caja_chica') {
                 $query->where('moneda', 'BOB')->where('monto', '<=', 300);
             } elseif ($request->tipo_monto === 'regular') {
@@ -207,13 +215,13 @@ class ContabilidadController extends Controller
         $solicitudes = $query->paginate(12)->withQueryString();
         $empresas = $isCajaChica
             ? Empresa::where('nombre', 'like', '%Fralak%')->get()
-            : Empresa::all();
+            : ($contaUser && $contaUser->esAdmin() ? Empresa::all() : $contaUser->empresas);
         $proveedores = Proveedor::all();
 
         // Conteos para Badges de Pestañas
         $baseBadgeQuery = $this->getContabilidadQuery();
         $badgePorPagar = (clone $baseBadgeQuery)->where('estado', 'Aprobado_Jefatura')->count();
-        $badgeCajaChica = (clone $baseBadgeQuery)->where('estado', 'Aprobado_Jefatura')
+        $badgeCajaChica = $isSoloMayores ? 0 : (clone $baseBadgeQuery)->where('estado', 'Aprobado_Jefatura')
             ->where('moneda', 'BOB')
             ->where('monto', '<=', 300)
             ->count();
@@ -232,6 +240,8 @@ class ContabilidadController extends Controller
             'badgeCajaChica' => $badgeCajaChica,
             'badgeRegulares' => $badgeRegulares,
             'isCajaChica' => $isCajaChica,
+            'isSoloMayores' => $isSoloMayores,
+            'isMixto' => $isMixto,
             'filters' => $request->only(['estado', 'empresa_id', 'moneda', 'tipo_monto', 'search']),
         ]);
     }

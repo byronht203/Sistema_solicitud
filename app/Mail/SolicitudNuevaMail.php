@@ -138,6 +138,14 @@ class SolicitudNuevaMail extends Mailable
     }
 
     /**
+     * Alias para notificarJefatura
+     */
+    public static function notificarNuevaSolicitud(Solicitud $solicitud)
+    {
+        return self::notificarJefatura($solicitud);
+    }
+
+    /**
      * Helper para enviar la notificación por correo al Jefe Asignado específico y a Contabilidad
      */
     public static function notificarJefatura(Solicitud $solicitud)
@@ -156,16 +164,22 @@ class SolicitudNuevaMail extends Mailable
                 }
             }
 
-            // 2. Correo corporativo del Jefe específico asignado a la solicitud
-            if ($solicitud->jefe) {
+            // 2. Correo corporativo de todos los Jefes asignados (Principal y Copias)
+            $jefesList = $solicitud->jefes_asignados;
+            if ($jefesList && count($jefesList) > 0) {
+                foreach ($jefesList as $ju) {
+                    $correoJefe = $ju->getCorreoCorporativoParaEmpresa($empresaId);
+                    if ($correoJefe) {
+                        $destinatarios[] = $correoJefe;
+                    }
+                }
+            } elseif ($solicitud->jefe) {
                 $correoJefe = $solicitud->jefe->getCorreoCorporativoParaEmpresa($empresaId);
                 if ($correoJefe) {
                     $destinatarios[] = $correoJefe;
                 }
-            }
-
-            // 3. Si no hay jefe asignado explícito, notificar a los jefes de esa empresa
-            if (!$solicitud->jefe) {
+            } else {
+                // Si no hay jefe asignado explícito, notificar a los jefes de esa empresa
                 $jefes = User::whereHas('rol', function ($q) {
                     $q->whereIn('nombre', ['Jefe', 'Jefatura']);
                 })->get();
@@ -179,15 +193,23 @@ class SolicitudNuevaMail extends Mailable
             $isFralak = str_contains(strtolower($solicitud->empresa ? $solicitud->empresa->nombre : ''), 'fralak');
             $isCajaChica = ($solicitud->tipo_solicitud === 'Caja Chica') || ($solicitud->moneda === 'BOB' && $solicitud->monto <= 300);
 
-            if ($solicitud->contabilidad) {
+            $contaUsersList = $solicitud->contabilidades_asignadas;
+            if ($contaUsersList && count($contaUsersList) > 0) {
+                foreach ($contaUsersList as $cu) {
+                    $correoConta = $cu->getCorreoCorporativoParaEmpresa($empresaId);
+                    if ($correoConta) {
+                        $destinatarios[] = $correoConta;
+                    }
+                }
+            } elseif ($solicitud->contabilidad) {
                 $correoConta = $solicitud->contabilidad->getCorreoCorporativoParaEmpresa($empresaId);
                 if ($correoConta) {
                     $destinatarios[] = $correoConta;
                 }
             } elseif ($isFralak && $isCajaChica) {
-                // Notificar exclusivamente a la encargada de Caja Chica Fralak (Maribel Caero)
+                // Notificar a la encargada de Caja Chica Fralak
                 $cajaUsers = User::whereHas('rol', function ($q) {
-                    $q->whereIn('nombre', ['Caja Chica', 'Cajachica']);
+                    $q->whereIn('nombre', ['Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
                 })->get();
 
                 foreach ($cajaUsers as $c) {
@@ -197,9 +219,9 @@ class SolicitudNuevaMail extends Mailable
                     }
                 }
             } else {
-                // Notificar a Contabilidad General de esa empresa
+                // Notificar a Contabilidad de esa empresa
                 $contaUsers = User::whereHas('rol', function ($q) {
-                    $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+                    $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
                 })->get();
 
                 foreach ($contaUsers as $c) {

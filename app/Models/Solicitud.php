@@ -17,7 +17,9 @@ class Solicitud extends Model
         'solicitante_id',
         'tipo_solicitud',
         'jefe_id',
+        'jefe_ids',
         'contabilidad_id',
+        'contabilidad_ids',
         'proveedor_id',
         'motivo_descripcion',
         'monto',
@@ -37,7 +39,43 @@ class Solicitud extends Model
         'emite_factura' => 'boolean',
         'monto' => 'decimal:2',
         'fecha_solicitud' => 'date:Y-m-d',
+        'contabilidad_ids' => 'array',
+        'jefe_ids' => 'array',
     ];
+
+    protected $appends = ['contabilidades_asignadas', 'jefes_asignados'];
+
+    public function getJefesAsignadosAttribute()
+    {
+        $ids = [];
+        if (!empty($this->jefe_ids) && is_array($this->jefe_ids)) {
+            $ids = array_merge($ids, $this->jefe_ids);
+        }
+        if (!empty($this->jefe_id)) {
+            $ids[] = $this->jefe_id;
+        }
+        $ids = array_values(array_unique(array_filter($ids)));
+        if (empty($ids)) {
+            return [];
+        }
+        return User::with(['rol', 'empresas'])->whereIn('id', $ids)->get();
+    }
+
+    public function getContabilidadesAsignadasAttribute()
+    {
+        $ids = [];
+        if (!empty($this->contabilidad_ids) && is_array($this->contabilidad_ids)) {
+            $ids = array_merge($ids, $this->contabilidad_ids);
+        }
+        if (!empty($this->contabilidad_id)) {
+            $ids[] = $this->contabilidad_id;
+        }
+        $ids = array_values(array_unique(array_filter($ids)));
+        if (empty($ids)) {
+            return [];
+        }
+        return User::with(['rol', 'empresas'])->whereIn('id', $ids)->get();
+    }
 
     public function empresa()
     {

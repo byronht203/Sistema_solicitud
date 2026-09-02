@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 18-08-2026 a las 21:37:41
+-- Tiempo de generación: 25-08-2026 a las 15:25:47
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -91,7 +91,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (11, '2026_08_13_000001_add_jefe_id_to_solicitudes_table', 1),
 (12, '2026_08_14_000001_add_contabilidad_id_to_solicitudes_table', 1),
 (13, '2026_08_17_000002_make_extra_fields_nullable_in_usuarios_table', 2),
-(14, '2026_08_18_000001_update_proveedores_and_solicitudes_for_caja_chica', 3);
+(14, '2026_08_18_000001_update_proveedores_and_solicitudes_for_caja_chica', 3),
+(15, '2026_08_21_000001_create_caja_chica_role_and_update_maribel', 4);
 
 -- --------------------------------------------------------
 
@@ -149,6 +150,7 @@ CREATE TABLE `proveedores` (
 -- Volcado de datos para la tabla `proveedores`
 --
 
+
 -- --------------------------------------------------------
 
 --
@@ -172,7 +174,7 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `created_at`, `updated_at`) 
 (2, 'Jefe', 'Revisión y aprobación de solicitudes de su área', '2026-08-14 22:31:02', '2026-08-14 22:31:02'),
 (3, 'Contabilidad', 'Procesamiento de pagos y desembolsos', '2026-08-14 22:31:02', '2026-08-14 22:31:02'),
 (4, 'Solicitante', 'Creación y seguimiento de solicitudes de pago', '2026-08-14 22:31:02', '2026-08-14 22:31:02'),
-(5, 'Caja Chica', 'Gestión y desembolso exclusivo de solicitudes de Caja Chica (Hasta 300 BOB)', '2026-08-21 00:00:00', '2026-08-21 00:00:00');
+(5, 'Caja Chica', 'Gestión y desembolso exclusivo de solicitudes de Caja Chica (Hasta 300 BOB)', '2026-08-21 19:39:24', '2026-08-21 19:39:24');
 
 -- --------------------------------------------------------
 
@@ -208,6 +210,7 @@ CREATE TABLE `solicitudes` (
 --
 -- Volcado de datos para la tabla `solicitudes`
 --
+
 
 -- --------------------------------------------------------
 
@@ -254,7 +257,7 @@ INSERT INTO `usuarios` (`id`, `rol_id`, `nombre`, `apellidos`, `ci`, `cargo`, `d
 (15, 3, 'Fabiana', 'Ayllon Abrego', NULL, 'Auxiliar Contable', NULL, NULL, 'pagos@fralak.com.bo', '$2y$12$yT9qNLQiIH5PW8XQOR3jae9Gwmq56y5yQRFan/h8cQ/qOD2yW.TeK', NULL, '2026-08-17 22:56:45', '2026-08-18 01:28:31', NULL),
 (16, 4, 'Andres Fernando', 'Ordoñez Severich', NULL, 'Especialista de Línea', NULL, NULL, 'endoscopia@fralak.com.bo', '$2y$12$.F2CLkDOEfPcIO0Noel/oOE.4zkQjhWlA1dXxZeshamotiK7X9BD6', NULL, '2026-08-17 22:56:46', '2026-08-18 01:28:31', NULL),
 (17, 4, 'Jose Daniel', 'Salazar Arocha', NULL, 'Asistente de Servicio Técnico', NULL, NULL, 'soporte.sis@fralak.com.bo', '$2y$12$gy9AotF1PnJkhkc5QFzQjeFVcnDbB55lC2IC.nzNBRHAk3flGn5Z.', NULL, '2026-08-17 22:56:46', '2026-08-18 01:28:32', NULL),
-(18, 3, 'Maribel', 'Caero Agreda', NULL, 'Regente Farmacéutico', NULL, NULL, 'regente.scz@fralak.com.bo', '$2y$12$XBMsRtXBHtbTQehHMs4E2.bKr6KUfnNIzzDR5CpgXSUa7SKYNLSbe', NULL, '2026-08-17 22:56:47', '2026-08-18 01:28:33', NULL),
+(18, 5, 'Maribel', 'Caero Agreda', NULL, 'Regente Farmacéutico / Encargada Caja Chica', NULL, NULL, 'regente.scz@fralak.com.bo', '$2y$12$XBMsRtXBHtbTQehHMs4E2.bKr6KUfnNIzzDR5CpgXSUa7SKYNLSbe', NULL, '2026-08-17 22:56:47', '2026-08-21 19:39:24', NULL),
 (19, 4, 'Edwin Fernando', 'Daza Villanueva', NULL, 'Ingeniero de Servicio Técnico', NULL, NULL, 'soporte.cbba@fralak.com.bo', '$2y$12$18PUUBa65OBbqhMuksQGQeE/5ku3n/G8yHdr93rLtucaURVawsPim', NULL, '2026-08-17 22:56:47', '2026-08-18 01:28:33', NULL),
 (20, 4, 'Antoine', 'Hemard Antelo', NULL, 'Asistente Administrativo General', NULL, NULL, 'antoine.hemard@fralak.com.bo', '$2y$12$.kxS.CG0uS7ze79nzUKdXeKqhHVGLVkFTGd6JwL23EnRgxHHwFdfK', NULL, '2026-08-17 22:56:48', '2026-08-18 01:28:34', NULL),
 (21, 4, 'Julio Luis', 'Herrera Quintana', NULL, 'Especialista de Línea', NULL, NULL, 'julio.herrera@fralak.com.bo', '$2y$12$JIUBXnquIOAdHj29g/j7luJ5hrivP5dmyFoNED0o/dbdGSyoB71Km', NULL, '2026-08-17 22:56:48', '2026-08-18 01:28:34', NULL),
@@ -293,11 +296,12 @@ INSERT INTO `usuarios` (`id`, `rol_id`, `nombre`, `apellidos`, `ci`, `cargo`, `d
 (54, 4, 'Camila Shaiel', 'Hurtado Patzi', NULL, 'Asistente de Licitaciones', NULL, NULL, 'licitaciones@dotmed.com.bo', '$2y$12$0JrwdYZX772YrK7p6oZvrejM5R36Qn4cCHH.QgDcOnxZz0XAFzeU.', NULL, '2026-08-17 22:57:03', '2026-08-18 01:28:49', NULL),
 (55, 4, 'Juan Pablo', 'Bravo Vincenti', NULL, 'Auxiliar Contable', NULL, NULL, 'aux.contable@dotmed.com.bo', '$2y$12$C1pOXJpWKUw2MsE8GDbyNuDBrD8GaoNm3L1hgcI3Jcuf7LRXH4QWO', NULL, '2026-08-17 22:57:03', '2026-08-18 01:28:49', NULL),
 (56, 4, 'Ruth', 'Rodriguez Huaycho', NULL, 'Coordinadora Centro Diálisis', NULL, NULL, 'clinica@cid.com.bo', '$2y$12$EN.J9A0U.pLfNxz8CANSKupwI.mLMKHlt5163T4IbXtVeAMUu.N1i', NULL, '2026-08-17 22:57:03', '2026-08-18 01:28:50', NULL),
-(57, 4, 'Juan Carlos', 'Mayta Lima', NULL, 'Auxiliar Contable', NULL, NULL, 'contabilidad@cid.com.bo', '$2y$12$mSAmifVD4F93Ec71Z3LLGuo4km/E//Z2us5sq4hE1PXwEiI.0g//G', NULL, '2026-08-17 22:57:04', '2026-08-18 01:28:50', NULL),
+(57, 3, 'Juan Carlos', 'Mayta Lima', NULL, 'Contabilidad CID', NULL, NULL, 'contabilidad@cid.com.bo', '$2y$12$mSAmifVD4F93Ec71Z3LLGuo4km/E//Z2us5sq4hE1PXwEiI.0g//G', NULL, '2026-08-17 22:57:04', '2026-08-24 19:55:21', NULL),
 (58, 4, 'Cecilia', 'Perez Acuña', NULL, 'Coordinadora de Servicio', NULL, NULL, 'atencion.servicio@cid.com.bo', '$2y$12$uH9KPXaY8qiwxhDvK40uF.0/e6Xh4junSzqHsjFHikiEffjxdjUcu', NULL, '2026-08-17 22:57:04', '2026-08-18 01:28:50', NULL),
 (59, 4, 'Marcos', 'Peñaranda', NULL, 'Ingeniero de Servicio', NULL, NULL, 'soporte.lp@cid.com.bo', '$2y$12$9dMXyHDs09ok2DbrvClsj.mZzQPpbdRz7jGwy0FwfcnLpmbjvHFky', NULL, '2026-08-17 22:57:04', '2026-08-18 01:28:51', NULL),
 (60, 4, 'Nelsi', 'Chana Casas', NULL, 'Fisioterapeuta-Kinesiologa', NULL, NULL, 'fisioterapia@cid.com.bo', '$2y$12$VqVW1FmoBM2/LNk1ssO7A.JjRO28H3Q3PJavlOBtqi3FT09q9Qp6S', NULL, '2026-08-17 22:57:05', '2026-08-18 01:28:51', NULL),
-(61, 4, 'Miguel', 'Castro Montaño', NULL, 'Ingeniero de Servicio Técnico', NULL, NULL, 'miguel.castro@cid.com.bo', '$2y$12$MSRuafTvfp5w5VyGpAB0ZOneGhpDiLcxLXf02qSgas.aciRM/syWe', NULL, '2026-08-17 22:57:05', '2026-08-18 01:28:52', NULL);
+(61, 4, 'Miguel', 'Castro Montaño', NULL, 'Ingeniero de Servicio Técnico', NULL, NULL, 'miguel.castro@cid.com.bo', '$2y$12$MSRuafTvfp5w5VyGpAB0ZOneGhpDiLcxLXf02qSgas.aciRM/syWe', NULL, '2026-08-17 22:57:05', '2026-08-18 01:28:52', NULL),
+(62, 3, 'Administración', 'CID SRL', NULL, 'Administración / Contabilidad CID', NULL, NULL, 'administracion@cid.com.bo', '$2y$12$FM2.Bp/CV/D/L9SQBeLSc.UqzgMuU6m4QDKEtJQlX2tYm7SgJHkK6', NULL, '2026-08-24 19:55:23', '2026-08-24 19:55:23', NULL);
 
 -- --------------------------------------------------------
 
@@ -341,8 +345,6 @@ INSERT INTO `usuario_empresa` (`id`, `usuario_id`, `empresa_id`, `correo_corpora
 (27, 16, 2, 'endoscopia@dotmed.com.bo', '2026-08-17 22:56:46', '2026-08-18 01:28:31'),
 (28, 17, 1, 'soporte.sis@fralak.com.bo', '2026-08-17 22:56:46', '2026-08-18 01:28:32'),
 (29, 17, 3, 'soporte.sis@cid.com.bo', '2026-08-17 22:56:46', '2026-08-18 01:28:32'),
-(30, 18, 1, 'regente.scz@fralak.com.bo', '2026-08-17 22:56:47', '2026-08-18 01:28:33'),
-(31, 18, 2, 'regencia@dotmed.com.bo', '2026-08-17 22:56:47', '2026-08-18 01:28:33'),
 (32, 19, 1, 'soporte.cbba@fralak.com.bo', '2026-08-17 22:56:47', '2026-08-18 01:28:33'),
 (33, 19, 2, 'servicio.cbba@dotmed.com.bo', '2026-08-17 22:56:48', '2026-08-18 01:28:33'),
 (34, 19, 3, 'plataforma.servicio@cid.com.bo', '2026-08-17 22:56:48', '2026-08-18 01:28:33'),
@@ -404,11 +406,13 @@ INSERT INTO `usuario_empresa` (`id`, `usuario_id`, `empresa_id`, `correo_corpora
 (90, 54, 3, 'licitaciones@cid.com.bo', '2026-08-17 22:57:03', '2026-08-18 01:28:49'),
 (91, 55, 2, 'aux.contable@dotmed.com.bo', '2026-08-17 22:57:03', '2026-08-18 01:28:49'),
 (92, 56, 3, 'clinica@cid.com.bo', '2026-08-17 22:57:03', '2026-08-18 01:28:50'),
-(93, 57, 3, 'contabilidad@cid.com.bo', '2026-08-17 22:57:04', '2026-08-18 01:28:50'),
+(93, 57, 3, 'contabilidad@cid.com.bo', '2026-08-17 22:57:04', '2026-08-24 19:55:22'),
 (94, 58, 3, 'atencion.servicio@cid.com.bo', '2026-08-17 22:57:04', '2026-08-18 01:28:50'),
 (95, 59, 3, 'soporte.lp@cid.com.bo', '2026-08-17 22:57:05', '2026-08-18 01:28:51'),
 (96, 60, 3, 'fisioterapia@cid.com.bo', '2026-08-17 22:57:05', '2026-08-18 01:28:51'),
-(97, 61, 3, 'miguel.castro@cid.com.bo', '2026-08-17 22:57:05', '2026-08-18 01:28:52');
+(97, 61, 3, 'miguel.castro@cid.com.bo', '2026-08-17 22:57:05', '2026-08-18 01:28:52'),
+(98, 18, 1, 'regente.scz@fralak.com.bo', '2026-08-21 19:39:24', '2026-08-21 19:39:24'),
+(99, 62, 3, 'administracion@cid.com.bo', '2026-08-24 19:55:23', '2026-08-24 19:55:23');
 
 --
 -- Índices para tablas volcadas
@@ -509,7 +513,7 @@ ALTER TABLE `failed_jobs`
 -- AUTO_INCREMENT de la tabla `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT de la tabla `personal_access_tokens`
@@ -527,25 +531,25 @@ ALTER TABLE `proveedores`
 -- AUTO_INCREMENT de la tabla `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes`
 --
 ALTER TABLE `solicitudes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=62;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
 
 --
 -- AUTO_INCREMENT de la tabla `usuario_empresa`
 --
 ALTER TABLE `usuario_empresa`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=98;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=100;
 
 --
 -- Restricciones para tablas volcadas

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, router, Link } from '@inertiajs/react';
+import ContabilidadMultiSelect from '@/Components/ContabilidadMultiSelect';
+import JefeMultiSelect from '@/Components/JefeMultiSelect';
 import {
     FileSpreadsheet,
     Plus,
@@ -36,13 +38,52 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
     const [empresaState, setEmpresaState] = useState(filters.empresa_id || '');
     const [monedaState, setMonedaState] = useState(filters.moneda || '');
 
+    const jefes = usuarios.filter((u) => u.rol && ['Jefe', 'Jefatura'].includes(u.rol.nombre));
+
+    const getFilteredJefes = (empId) => {
+        if (!empId) return jefes;
+        const filtered = jefes.filter((j) => (j.empresas || []).some((e) => e.id == empId));
+        return filtered.length > 0 ? filtered : jefes;
+    };
+
+    const getFilteredSolicitantes = (empId) => {
+        if (!empId) return usuarios;
+        const filtered = usuarios.filter((u) => (u.empresas || []).some((e) => e.id == empId));
+        return filtered.length > 0 ? filtered : usuarios;
+    };
+
+    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
+        const contasList = contabilidades.length > 0 ? contabilidades : usuarios.filter((u) => u.rol && ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica'].includes(u.rol.nombre));
+        if (!empId) return contasList;
+        const selectedEmp = empresas.find((e) => e.id == empId);
+        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
+        const isFralak = empNombre.includes('fralak');
+        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
+
+        return contasList.filter((c) => {
+            const belongsToCompany = (c.empresas || []).some((e) => e.id == empId);
+            if (!belongsToCompany) return false;
+
+            const rol = (c.rol?.nombre || '').toLowerCase();
+            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
+
+            if (isFralak) {
+                return isCajaChica ? isUserCajaChica : !isUserCajaChica;
+            } else {
+                return !isUserCajaChica;
+            }
+        });
+    };
+
     // Form for Create/Edit
     const { data, setData, post, processing, errors, reset } = useForm({
         empresa_id: '',
         tipo_solicitud: 'Pago a Proveedor',
         solicitante_id: '',
         jefe_id: '',
+        jefe_ids: [],
         contabilidad_id: '',
+        contabilidad_ids: [],
         proveedor_id: '',
         motivo_descripcion: '',
         monto: '',
@@ -54,7 +95,23 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
         archivo_respaldo: null,
     });
 
-    const jefes = usuarios.filter((u) => u.rol && ['Jefe', 'Jefatura'].includes(u.rol.nombre));
+    const handleEmpresaChange = (newEmpId) => {
+        const filteredJ = getFilteredJefes(newEmpId);
+        const filteredS = getFilteredSolicitantes(newEmpId);
+        const filteredC = getFilteredContabilidades(newEmpId, data.tipo_solicitud, data.monto, data.moneda);
+        const eduardo = filteredJ.find((j) => (j.nombre_completo || '').toLowerCase().includes('eduardo') || (j.cargo || '').toLowerCase().includes('auditor'));
+        const defaultJefe = eduardo || filteredJ[0];
+
+        setData((prev) => ({
+            ...prev,
+            empresa_id: newEmpId,
+            solicitante_id: filteredS.length > 0 ? filteredS[0].id : '',
+            jefe_id: defaultJefe ? defaultJefe.id : '',
+            jefe_ids: defaultJefe ? [defaultJefe.id] : [],
+            contabilidad_ids: filteredC.length > 0 ? [filteredC[0].id] : [],
+            contabilidad_id: filteredC.length > 0 ? filteredC[0].id : '',
+        }));
+    };
 
     const getSolicitanteEmail = (solicitanteId, empresaId) => {
         if (!solicitanteId) return '';
@@ -92,7 +149,7 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
 
     const getSelectedContaEmail = (contaId, empresaId) => {
         if (!contaId) return '';
-        const contaUser = usuarios.find((u) => u.id === Number(contaId));
+        const contaUser = (contabilidades.length > 0 ? contabilidades : usuarios).find((u) => u.id === Number(contaId));
         if (!contaUser) return '';
         if (empresaId && contaUser.empresas && contaUser.empresas.length > 0) {
             const rel = contaUser.empresas.find((e) => e.id === Number(empresaId));
@@ -105,6 +162,43 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
             }
         }
         return contaUser.correo || '';
+    };
+
+    const getEmpresaColorInfo = (empIdOrEmp) => {
+        let name = '';
+        if (typeof empIdOrEmp === 'object' && empIdOrEmp !== null) {
+            name = empIdOrEmp.nombre || '';
+        } else if (typeof empIdOrEmp === 'number' || typeof empIdOrEmp === 'string') {
+            const found = empresas.find((e) => Number(e.id) === Number(empIdOrEmp));
+            name = found?.nombre || '';
+        }
+        const lower = name.toLowerCase();
+        if (lower.includes('fralak')) {
+            return {
+                textColor: 'text-rose-400',
+                hexColor: '#fb7185', // Rojo Vino
+                borderClass: 'border-rose-500/40 focus:ring-rose-500',
+            };
+        }
+        if (lower.includes('dotmed')) {
+            return {
+                textColor: 'text-teal-400',
+                hexColor: '#2dd4bf', // Verde Azulado
+                borderClass: 'border-teal-500/40 focus:ring-teal-500',
+            };
+        }
+        if (lower.includes('cid')) {
+            return {
+                textColor: 'text-sky-400',
+                hexColor: '#38bdf8', // Azul Petróleo
+                borderClass: 'border-sky-500/40 focus:ring-sky-500',
+            };
+        }
+        return {
+            textColor: 'text-emerald-400',
+            hexColor: '#34d399',
+            borderClass: 'border-slate-800 focus:ring-cyan-500',
+        };
     };
 
     // Form for Changing State
@@ -133,12 +227,21 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
 
     const openCreateModal = () => {
         reset();
+        const initEmpId = empresas.length > 0 ? empresas[0].id : '';
+        const filteredJ = getFilteredJefes(initEmpId);
+        const filteredS = getFilteredSolicitantes(initEmpId);
+        const filteredC = getFilteredContabilidades(initEmpId, 'Pago a Proveedor', '', 'BOB');
+        const eduardo = filteredJ.find((j) => (j.nombre_completo || '').toLowerCase().includes('eduardo') || (j.cargo || '').toLowerCase().includes('auditor'));
+        const defaultJefe = eduardo || filteredJ[0];
+
         setData({
-            empresa_id: empresas.length > 0 ? empresas[0].id : '',
+            empresa_id: initEmpId,
             tipo_solicitud: 'Pago a Proveedor',
-            solicitante_id: usuarios.length > 0 ? usuarios[0].id : '',
-            jefe_id: jefes.length > 0 ? jefes[0].id : '',
-            contabilidad_id: contabilidades.length > 0 ? contabilidades[0].id : '',
+            solicitante_id: filteredS.length > 0 ? filteredS[0].id : '',
+            jefe_id: defaultJefe ? defaultJefe.id : '',
+            jefe_ids: defaultJefe ? [defaultJefe.id] : [],
+            contabilidad_id: filteredC.length > 0 ? filteredC[0].id : '',
+            contabilidad_ids: filteredC.length > 0 ? [filteredC[0].id] : [],
             proveedor_id: proveedores.length > 0 ? proveedores[0].id : '',
             motivo_descripcion: '',
             monto: '',
@@ -164,12 +267,22 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
 
     const openEditModal = (sol) => {
         setActiveSolicitud(sol);
+        const initialJefeIds = Array.isArray(sol.jefe_ids) && sol.jefe_ids.length > 0
+            ? sol.jefe_ids.map(Number)
+            : (sol.jefe_id ? [Number(sol.jefe_id)] : []);
+
+        const initialContaIds = Array.isArray(sol.contabilidad_ids) && sol.contabilidad_ids.length > 0
+            ? sol.contabilidad_ids.map(Number)
+            : (sol.contabilidad_id ? [Number(sol.contabilidad_id)] : []);
+
         setData({
             empresa_id: sol.empresa_id,
             tipo_solicitud: sol.tipo_solicitud || 'Pago a Proveedor',
             solicitante_id: sol.solicitante_id,
-            jefe_id: sol.jefe_id || '',
-            contabilidad_id: sol.contabilidad_id || '',
+            jefe_id: initialJefeIds.length > 0 ? initialJefeIds[0] : '',
+            jefe_ids: initialJefeIds,
+            contabilidad_id: initialContaIds.length > 0 ? initialContaIds[0] : '',
+            contabilidad_ids: initialContaIds,
             proveedor_id: sol.proveedor_id,
             motivo_descripcion: sol.motivo_descripcion,
             monto: sol.monto,
@@ -294,12 +407,26 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                         <select
                             value={empresaState}
                             onChange={(e) => setEmpresaState(e.target.value)}
-                            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                            className={`w-full bg-slate-950/80 border ${getEmpresaColorInfo(empresaState).borderClass} rounded-xl px-3 py-2 text-xs font-bold ${empresaState ? getEmpresaColorInfo(empresaState).textColor : 'text-slate-300'} focus:ring-1 focus:ring-indigo-500`}
+                            style={empresaState ? { color: getEmpresaColorInfo(empresaState).hexColor } : {}}
                         >
-                            <option value="">Todas las Empresas</option>
-                            {empresas.map((emp) => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
+                            <option value="" style={{ color: '#cbd5e1', backgroundColor: '#020617' }}>Todas las Empresas</option>
+                            {empresas.map((emp) => {
+                                const itemColor = getEmpresaColorInfo(emp);
+                                return (
+                                    <option
+                                        key={emp.id}
+                                        value={emp.id}
+                                        style={{
+                                            color: itemColor.hexColor,
+                                            backgroundColor: '#020617',
+                                            fontWeight: '700',
+                                        }}
+                                    >
+                                        {emp.nombre}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
@@ -516,87 +643,95 @@ export default function SolicitudesIndex({ solicitudes, empresas, proveedores, u
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Empresa</label>
+                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Empresa <span className="text-cyan-400">*</span></label>
                                     <select
                                         value={data.empresa_id}
-                                        onChange={(e) => setData('empresa_id', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white font-semibold text-emerald-300"
+                                        onChange={(e) => handleEmpresaChange(e.target.value)}
+                                        className={`w-full bg-slate-950 border ${getEmpresaColorInfo(data.empresa_id).borderClass} rounded-xl p-2 text-xs font-bold ${getEmpresaColorInfo(data.empresa_id).textColor}`}
+                                        style={{ color: getEmpresaColorInfo(data.empresa_id).hexColor }}
                                         required
                                     >
-                                        <option value="">Seleccione Empresa...</option>
-                                        {empresas.map((e) => (
-                                            <option key={e.id} value={e.id}>{e.nombre}</option>
-                                        ))}
+                                        <option value="" style={{ color: '#cbd5e1', backgroundColor: '#020617' }}>Seleccione Empresa...</option>
+                                        {empresas.map((e) => {
+                                            const itemColor = getEmpresaColorInfo(e);
+                                            return (
+                                                <option
+                                                    key={e.id}
+                                                    value={e.id}
+                                                    style={{
+                                                        color: itemColor.hexColor,
+                                                        backgroundColor: '#020617',
+                                                        fontWeight: '700',
+                                                    }}
+                                                >
+                                                    {e.nombre}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                     {getSolicitanteEmail(data.solicitante_id, data.empresa_id) && (
-                                        <p className="text-[10px] text-emerald-400 mt-1 font-mono">
+                                        <p className={`text-[10px] ${getEmpresaColorInfo(data.empresa_id).textColor} mt-1 font-mono`}>
                                             Origen: <strong>{getSolicitanteEmail(data.solicitante_id, data.empresa_id)}</strong>
                                         </p>
                                     )}
                                 </div>
 
                                 <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Solicitante</label>
+                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Solicitante <span className="text-cyan-400">*</span></label>
                                     <select
                                         value={data.solicitante_id}
                                         onChange={(e) => setData('solicitante_id', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs"
                                         required
                                     >
-                                        <option value="">Seleccione Usuario...</option>
-                                        {usuarios.map((u) => (
+                                        <option value="">Seleccione Solicitante...</option>
+                                        {getFilteredSolicitantes(data.empresa_id).map((u) => (
                                             <option key={u.id} value={u.id}>{u.nombre_completo} ({u.cargo || u.rol?.nombre || 'Usuario'})</option>
                                         ))}
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Jefe Aprobador</label>
-                                    <select
-                                        value={data.jefe_id}
-                                        onChange={(e) => setData('jefe_id', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white font-semibold text-cyan-300"
-                                        required
-                                    >
-                                        <option value="">Seleccione Jefe...</option>
-                                        {jefes.map((j) => (
-                                            <option key={j.id} value={j.id}>{j.nombre_completo} ({j.cargo || j.rol?.nombre || 'Jefe'})</option>
-                                        ))}
-                                    </select>
-                                    {getSelectedJefeEmail(data.jefe_id, data.empresa_id) && (
-                                        <p className="text-[10px] text-cyan-400 mt-1 font-mono">
-                                            Destino: <strong>{getSelectedJefeEmail(data.jefe_id, data.empresa_id)}</strong>
-                                        </p>
-                                    )}
+                                    <JefeMultiSelect
+                                        jefes={jefes}
+                                        empresaId={data.empresa_id}
+                                        selectedIds={data.jefe_ids || []}
+                                        onChange={(ids) => setData((prev) => ({
+                                            ...prev,
+                                            jefe_ids: ids,
+                                            jefe_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Jefe Aprobador"
+                                    />
                                 </div>
 
                                 <div>
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Encargado Contabilidad</label>
-                                    <select
-                                        value={data.contabilidad_id}
-                                        onChange={(e) => setData('contabilidad_id', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white font-semibold text-amber-300"
-                                    >
-                                        <option value="">Seleccione Contabilidad...</option>
-                                        {(contabilidades.length > 0 ? contabilidades : usuarios.filter((u) => u.rol && ['Contabilidad', 'Conta'].includes(u.rol.nombre))).map((c) => (
-                                            <option key={c.id} value={c.id}>{c.nombre_completo} ({c.cargo || c.rol?.nombre || 'Contabilidad'})</option>
-                                        ))}
-                                    </select>
-                                    {getSelectedContaEmail(data.contabilidad_id, data.empresa_id) && (
-                                        <p className="text-[10px] text-amber-400 mt-1 font-mono">
-                                            Destino (Conta): <strong>{getSelectedContaEmail(data.contabilidad_id, data.empresa_id)}</strong>
-                                        </p>
-                                    )}
+                                    <ContabilidadMultiSelect
+                                        contabilidades={contabilidades.length > 0 ? contabilidades : usuarios.filter((u) => u.rol && ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica'].includes(u.rol.nombre))}
+                                        empresaId={data.empresa_id}
+                                        tipoSol={data.tipo_solicitud}
+                                        monto={data.monto}
+                                        moneda={data.moneda}
+                                        selectedIds={data.contabilidad_ids || []}
+                                        onChange={(ids) => setData((prev) => ({
+                                            ...prev,
+                                            contabilidad_ids: ids,
+                                            contabilidad_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Encargado Contabilidad"
+                                    />
                                 </div>
 
-                                <div className="sm:col-span-4">
-                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Proveedor / Beneficiario</label>
+                                <div className="sm:col-span-2 lg:col-span-4">
+                                    <label className="block font-semibold text-slate-300 uppercase mb-1">Proveedor / Beneficiario <span className="text-cyan-400">*</span></label>
                                     <select
                                         value={data.proveedor_id}
                                         onChange={(e) => setData('proveedor_id', e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs"
                                         required
                                     >
                                         <option value="">Seleccione Proveedor...</option>

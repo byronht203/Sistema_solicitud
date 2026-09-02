@@ -270,15 +270,20 @@ export default function Index({ proveedores, filters = {} }) {
                 </div>
             )}
 
-            {/* MODAL NUEVO PROVEEDOR */}
+            {/* MODAL CREAR PROVEEDOR */}
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                            <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                <Truck className="w-5 h-5 text-indigo-400" />
-                                <span>Registrar Nuevo Proveedor / Beneficiario</span>
-                            </h3>
+                            <div>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Truck className="w-5 h-5 text-indigo-400" />
+                                    <span>Registrar Nuevo Proveedor</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Guarda el proveedor para seleccionarlo en tus solicitudes
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowCreateModal(false)}
                                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -290,49 +295,53 @@ export default function Index({ proveedores, filters = {} }) {
                         <form onSubmit={handleCreateSubmit} className="space-y-3 text-xs">
                             <div>
                                 <label className="block font-semibold text-slate-300 mb-1">
-                                    Nombre o Razón Social <span className="text-indigo-400">*</span>
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Ej: Farmacéutica Boliviana S.A."
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
                                     value={createData.nombre_razon_social}
                                     onChange={(e) => setCreateData('nombre_razon_social', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {createErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_razon_social}</p>}
                             </div>
 
                             <div>
-                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro</label>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
                                 <input
                                     type="text"
-                                    placeholder="Ej: Insumos médicos y equipamiento quirúrgico"
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
                                     value={createData.descripcion}
                                     onChange={(e) => setCreateData('descripcion', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {createErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{createErrors.descripcion}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI</label>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
                                     <input
                                         type="text"
-                                        placeholder="Ej: 1029384019"
+                                        placeholder="Ej: 1029384756"
                                         value={createData.nit_ci}
                                         onChange={(e) => setCreateData('nit_ci', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {createErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nit_ci}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Banco</label>
                                     <input
                                         type="text"
-                                        placeholder="Ej: Banco Bisa / BNB / BCP"
+                                        placeholder="Ej: BCP / Bisa"
                                         value={createData.banco}
                                         onChange={(e) => setCreateData('banco', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     />
+                                    {createErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{createErrors.banco}</p>}
                                 </div>
                             </div>
 
@@ -348,6 +357,7 @@ export default function Index({ proveedores, filters = {} }) {
                                         <option value="Cuenta Corriente">Cuenta Corriente</option>
                                         <option value="Otro">Otro</option>
                                     </select>
+                                    {createErrors.tipo_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.tipo_cuenta}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
@@ -358,18 +368,20 @@ export default function Index({ proveedores, filters = {} }) {
                                         onChange={(e) => setCreateData('numero_cuenta', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {createErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.numero_cuenta}</p>}
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block font-semibold text-slate-300 mb-1">Nombre del Titular</label>
+                                <label className="block font-semibold text-slate-300 mb-1">Titular de Cuenta</label>
                                 <input
                                     type="text"
-                                    placeholder="Nombre completo o razón social del titular"
+                                    placeholder="Nombre del titular"
                                     value={createData.nombre_titular_cuenta}
                                     onChange={(e) => setCreateData('nombre_titular_cuenta', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {createErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_titular_cuenta}</p>}
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -383,9 +395,9 @@ export default function Index({ proveedores, filters = {} }) {
                                 <button
                                     type="submit"
                                     disabled={createProcessing}
-                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5"
+                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
                                 >
-                                    <Send className="w-3.5 h-3.5" />
+                                    <Truck className="w-3.5 h-3.5" />
                                     <span>{createProcessing ? 'Guardando...' : 'Registrar Proveedor'}</span>
                                 </button>
                             </div>
@@ -396,13 +408,18 @@ export default function Index({ proveedores, filters = {} }) {
 
             {/* MODAL EDITAR PROVEEDOR */}
             {showEditModal && activeProveedor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                            <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                <Edit3 className="w-5 h-5 text-indigo-400" />
-                                <span>Editar Proveedor #{activeProveedor.id}</span>
-                            </h3>
+                            <div>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Edit3 className="w-5 h-5 text-indigo-400" />
+                                    <span>Editar Proveedor #{activeProveedor.id}</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Actualiza la información del proveedor para tus solicitudes
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowEditModal(false)}
                                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -414,45 +431,53 @@ export default function Index({ proveedores, filters = {} }) {
                         <form onSubmit={handleEditSubmit} className="space-y-3 text-xs">
                             <div>
                                 <label className="block font-semibold text-slate-300 mb-1">
-                                    Nombre o Razón Social <span className="text-indigo-400">*</span>
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     required
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
                                     value={editData.nombre_razon_social}
                                     onChange={(e) => setEditData('nombre_razon_social', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {editErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_razon_social}</p>}
                             </div>
 
                             <div>
-                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro</label>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
                                 <input
                                     type="text"
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
                                     value={editData.descripcion}
                                     onChange={(e) => setEditData('descripcion', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {editErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{editErrors.descripcion}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI</label>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
                                     <input
                                         type="text"
+                                        placeholder="Ej: 1029384756"
                                         value={editData.nit_ci}
                                         onChange={(e) => setEditData('nit_ci', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {editErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nit_ci}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Banco</label>
                                     <input
                                         type="text"
+                                        placeholder="Ej: BCP / Bisa"
                                         value={editData.banco}
                                         onChange={(e) => setEditData('banco', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     />
+                                    {editErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{editErrors.banco}</p>}
                                 </div>
                             </div>
 
@@ -468,26 +493,31 @@ export default function Index({ proveedores, filters = {} }) {
                                         <option value="Cuenta Corriente">Cuenta Corriente</option>
                                         <option value="Otro">Otro</option>
                                     </select>
+                                    {editErrors.tipo_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.tipo_cuenta}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
                                     <input
                                         type="text"
+                                        placeholder="Ej: 1234567890"
                                         value={editData.numero_cuenta}
                                         onChange={(e) => setEditData('numero_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {editErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.numero_cuenta}</p>}
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block font-semibold text-slate-300 mb-1">Nombre del Titular</label>
+                                <label className="block font-semibold text-slate-300 mb-1">Titular de Cuenta</label>
                                 <input
                                     type="text"
+                                    placeholder="Nombre del titular"
                                     value={editData.nombre_titular_cuenta}
                                     onChange={(e) => setEditData('nombre_titular_cuenta', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {editErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_titular_cuenta}</p>}
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -501,9 +531,9 @@ export default function Index({ proveedores, filters = {} }) {
                                 <button
                                     type="submit"
                                     disabled={editProcessing}
-                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5"
+                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
                                 >
-                                    <Send className="w-3.5 h-3.5" />
+                                    <Truck className="w-3.5 h-3.5" />
                                     <span>{editProcessing ? 'Guardando...' : 'Guardar Cambios'}</span>
                                 </button>
                             </div>

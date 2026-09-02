@@ -240,147 +240,135 @@ export default function Index({ proveedores, filters = {} }) {
                 )}
             </div>
 
-            {/* Modal: Registrar Proveedor */}
+            {/* Modal: Crear Proveedor */}
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button
-                            onClick={() => setShowCreateModal(false)}
-                            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Plus className="w-5 h-5 text-cyan-400" />
-                            <span>Registrar Nuevo Proveedor / Beneficiario</span>
-                        </h3>
-
-                        <form onSubmit={handleCreateSubmit} className="space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Nombre o Razón Social <span className="text-cyan-400">*</span>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Truck className="w-5 h-5 text-cyan-400" />
+                                    <span>Registrar Nuevo Proveedor</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Guarda el proveedor para seleccionarlo en tus solicitudes
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateSubmit} className="space-y-3 text-xs">
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Ej: Librería Central / Compras Menores..."
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
                                     value={createData.nombre_razon_social}
                                     onChange={(e) => setCreateData('nombre_razon_social', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
                                 />
                                 {createErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_razon_social}</p>}
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Descripción / Rubro / Observaciones (Opcional)
-                                </label>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
                                 <input
                                     type="text"
-                                    placeholder="Ej: Gastos de oficina, compras en efectivo, servicios presenciales..."
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
                                     value={createData.descripcion}
                                     onChange={(e) => setCreateData('descripcion', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
                                 />
                                 {createErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{createErrors.descripcion}</p>}
                             </div>
 
-                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Datos Bancarios (Opcional si el pago es en efectivo)
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            NIT / CI
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Opcional"
-                                            value={createData.nit_ci}
-                                            onChange={(e) => setCreateData('nit_ci', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        />
-                                        {createErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nit_ci}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Banco Destino
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ej: BNB, Mercantil..."
-                                            value={createData.banco}
-                                            onChange={(e) => setCreateData('banco', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        />
-                                        {createErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{createErrors.banco}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Tipo de Cuenta
-                                        </label>
-                                        <select
-                                            value={createData.tipo_cuenta}
-                                            onChange={(e) => setCreateData('tipo_cuenta', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        >
-                                            <option value="Caja de Ahorro">Caja de Ahorro</option>
-                                            <option value="Cuenta Corriente">Cuenta Corriente</option>
-                                            <option value="Otro">Otro</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Número de Cuenta
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Opcional"
-                                            value={createData.numero_cuenta}
-                                            onChange={(e) => setCreateData('numero_cuenta', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        />
-                                        {createErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.numero_cuenta}</p>}
-                                    </div>
-                                </div>
-
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Titular de la Cuenta Bancaria
-                                    </label>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
                                     <input
                                         type="text"
-                                        placeholder="Nombre del titular"
-                                        value={createData.nombre_titular_cuenta}
-                                        onChange={(e) => setCreateData('nombre_titular_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                                        placeholder="Ej: 1029384756"
+                                        value={createData.nit_ci}
+                                        onChange={(e) => setCreateData('nit_ci', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none font-mono"
                                     />
-                                    {createErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_titular_cuenta}</p>}
+                                    {createErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nit_ci}</p>}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Banco</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: BCP / Bisa"
+                                        value={createData.banco}
+                                        onChange={(e) => setCreateData('banco', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    />
+                                    {createErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{createErrors.banco}</p>}
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Tipo de Cuenta</label>
+                                    <select
+                                        value={createData.tipo_cuenta}
+                                        onChange={(e) => setCreateData('tipo_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    >
+                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                    {createErrors.tipo_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.tipo_cuenta}</p>}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: 1234567890"
+                                        value={createData.numero_cuenta}
+                                        onChange={(e) => setCreateData('numero_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none font-mono"
+                                    />
+                                    {createErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.numero_cuenta}</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">Titular de Cuenta</label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre del titular"
+                                    value={createData.nombre_titular_cuenta}
+                                    onChange={(e) => setCreateData('nombre_titular_cuenta', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
+                                />
+                                {createErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{createErrors.nombre_titular_cuenta}</p>}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => setShowCreateModal(false)}
-                                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={createProcessing}
-                                    className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition"
+                                    className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-1.5 shadow-md"
                                 >
-                                    Registrar Proveedor
+                                    <Truck className="w-3.5 h-3.5" />
+                                    <span>{createProcessing ? 'Guardando...' : 'Registrar Proveedor'}</span>
                                 </button>
                             </div>
                         </form>
@@ -390,143 +378,133 @@ export default function Index({ proveedores, filters = {} }) {
 
             {/* Modal: Editar Proveedor */}
             {showEditModal && activeProveedor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button
-                            onClick={() => setShowEditModal(false)}
-                            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-                            <Edit3 className="w-5 h-5 text-amber-400" />
-                            <span>Editar Proveedor #{activeProveedor.id}</span>
-                        </h3>
-                        <p className="text-xs text-slate-400 mb-4">
-                            Actualiza la razón social, descripción o datos bancarios del proveedor
-                        </p>
-
-                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Nombre o Razón Social <span className="text-amber-400">*</span>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Edit3 className="w-5 h-5 text-amber-400" />
+                                    <span>Editar Proveedor #{activeProveedor.id}</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Actualiza la información del proveedor para tus solicitudes
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="space-y-3 text-xs">
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     required
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
                                     value={editData.nombre_razon_social}
                                     onChange={(e) => setEditData('nombre_razon_social', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
                                 />
                                 {editErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_razon_social}</p>}
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Descripción / Rubro / Observaciones (Opcional)
-                                </label>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
                                 <input
                                     type="text"
-                                    placeholder="Ej: Gastos de oficina, compras en efectivo..."
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
                                     value={editData.descripcion}
                                     onChange={(e) => setEditData('descripcion', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
                                 />
                                 {editErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{editErrors.descripcion}</p>}
                             </div>
 
-                            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Datos Bancarios (Opcional)
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            NIT / CI
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editData.nit_ci}
-                                            onChange={(e) => setEditData('nit_ci', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                        />
-                                        {editErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nit_ci}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Banco Destino
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editData.banco}
-                                            onChange={(e) => setEditData('banco', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                        />
-                                        {editErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{editErrors.banco}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Tipo de Cuenta
-                                        </label>
-                                        <select
-                                            value={editData.tipo_cuenta}
-                                            onChange={(e) => setEditData('tipo_cuenta', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                        >
-                                            <option value="Caja de Ahorro">Caja de Ahorro</option>
-                                            <option value="Cuenta Corriente">Cuenta Corriente</option>
-                                            <option value="Otro">Otro</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                            Número de Cuenta
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editData.numero_cuenta}
-                                            onChange={(e) => setEditData('numero_cuenta', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
-                                        />
-                                        {editErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.numero_cuenta}</p>}
-                                    </div>
-                                </div>
-
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Titular de la Cuenta Bancaria
-                                    </label>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
                                     <input
                                         type="text"
-                                        value={editData.nombre_titular_cuenta}
-                                        onChange={(e) => setEditData('nombre_titular_cuenta', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                        placeholder="Ej: 1029384756"
+                                        value={editData.nit_ci}
+                                        onChange={(e) => setEditData('nit_ci', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none font-mono"
                                     />
-                                    {editErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_titular_cuenta}</p>}
+                                    {editErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nit_ci}</p>}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Banco</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: BCP / Bisa"
+                                        value={editData.banco}
+                                        onChange={(e) => setEditData('banco', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
+                                    />
+                                    {editErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{editErrors.banco}</p>}
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Tipo de Cuenta</label>
+                                    <select
+                                        value={editData.tipo_cuenta}
+                                        onChange={(e) => setEditData('tipo_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-amber-500 outline-none"
+                                    >
+                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                    {editErrors.tipo_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.tipo_cuenta}</p>}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: 1234567890"
+                                        value={editData.numero_cuenta}
+                                        onChange={(e) => setEditData('numero_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                                    />
+                                    {editErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.numero_cuenta}</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">Titular de Cuenta</label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre del titular"
+                                    value={editData.nombre_titular_cuenta}
+                                    onChange={(e) => setEditData('nombre_titular_cuenta', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
+                                />
+                                {editErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{editErrors.nombre_titular_cuenta}</p>}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => setShowEditModal(false)}
-                                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={editProcessing}
-                                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md transition"
+                                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold transition flex items-center gap-1.5 shadow-md"
                                 >
-                                    Guardar Cambios
+                                    <Truck className="w-3.5 h-3.5" />
+                                    <span>{editProcessing ? 'Guardando...' : 'Guardar Cambios'}</span>
                                 </button>
                             </div>
                         </form>

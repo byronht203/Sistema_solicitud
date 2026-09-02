@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SolicitanteLayout from '@/Layouts/SolicitanteLayout';
 import { Link, useForm, usePage } from '@inertiajs/react';
+import ContabilidadMultiSelect from '@/Components/ContabilidadMultiSelect';
+import JefeMultiSelect from '@/Components/JefeMultiSelect';
+import ProveedorSearchSelect from '@/Components/ProveedorSearchSelect';
 import {
     Clock,
     CheckCircle2,
@@ -28,6 +31,98 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
     const [showMailModal, setShowMailModal] = useState(false);
     const [mailHtml, setMailHtml] = useState('');
     const [loadingMail, setLoadingMail] = useState(false);
+    const [showQuickProvModal, setShowQuickProvModal] = useState(false);
+
+    const {
+        data: provData,
+        setData: setProvData,
+        post: postProv,
+        processing: provProcessing,
+        reset: resetProv,
+    } = useForm({
+        nombre_razon_social: '',
+        descripcion: '',
+        nit_ci: '',
+        banco: '',
+        tipo_cuenta: 'Caja de Ahorro',
+        numero_cuenta: '',
+        nombre_titular_cuenta: '',
+    });
+
+    const handleQuickProvSubmit = (e) => {
+        e.preventDefault();
+        postProv(route('proveedores.store'), {
+            onSuccess: () => {
+                setShowQuickProvModal(false);
+                resetProv();
+            },
+        });
+    };
+
+    const getFilteredJefes = (empId) => {
+        if (!empId) return jefes;
+        const filtered = jefes.filter((j) => (j.empresas || []).some((e) => e.id == empId));
+        return filtered.length > 0 ? filtered : jefes;
+    };
+
+    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
+        if (!empId) return [];
+        const selectedEmp = empresas.find((e) => e.id == empId);
+        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
+        const isFralak = empNombre.includes('fralak');
+        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
+
+        return contabilidades.filter((c) => {
+            const belongsToCompany = (c.empresas || []).some((e) => e.id == empId);
+            if (!belongsToCompany) return false;
+
+            const rol = (c.rol?.nombre || '').toLowerCase();
+            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
+
+            if (isFralak) {
+                return isCajaChica ? isUserCajaChica : !isUserCajaChica;
+            } else {
+                return !isUserCajaChica;
+            }
+        });
+    };
+
+    const getEmpresaColorInfo = (empIdOrEmp) => {
+        let name = '';
+        if (typeof empIdOrEmp === 'object' && empIdOrEmp !== null) {
+            name = empIdOrEmp.nombre || '';
+        } else if (typeof empIdOrEmp === 'number' || typeof empIdOrEmp === 'string') {
+            const found = empresas.find((e) => Number(e.id) === Number(empIdOrEmp));
+            name = found?.nombre || '';
+        }
+        const lower = name.toLowerCase();
+        if (lower.includes('fralak')) {
+            return {
+                textColor: 'text-rose-400',
+                hexColor: '#fb7185', // Rojo Vino
+                borderClass: 'border-rose-500/40 focus:ring-rose-500',
+            };
+        }
+        if (lower.includes('dotmed')) {
+            return {
+                textColor: 'text-teal-400',
+                hexColor: '#2dd4bf', // Verde Azulado
+                borderClass: 'border-teal-500/40 focus:ring-teal-500',
+            };
+        }
+        if (lower.includes('cid')) {
+            return {
+                textColor: 'text-sky-400',
+                hexColor: '#38bdf8', // Azul Petróleo
+                borderClass: 'border-sky-500/40 focus:ring-sky-500',
+            };
+        }
+        return {
+            textColor: 'text-emerald-400',
+            hexColor: '#34d399',
+            borderClass: 'border-slate-800 focus:ring-cyan-500',
+        };
+    };
 
     const openMailPreviewModal = (solicitud) => {
         setSelectedSolicitud(solicitud);
@@ -48,8 +143,11 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
 
     const { data, setData, post, processing, reset, errors } = useForm({
         empresa_id: empresas.length > 0 ? empresas[0].id : '',
-        jefe_id: jefes.length > 0 ? jefes[0].id : '',
-        contabilidad_id: contabilidades.length > 0 ? contabilidades[0].id : '',
+        tipo_solicitud: 'Pago a Proveedor',
+        jefe_id: '',
+        jefe_ids: [],
+        contabilidad_id: '',
+        contabilidad_ids: [],
         proveedor_id: proveedores.length > 0 ? proveedores[0].id : '',
         motivo_descripcion: '',
         monto: '',
@@ -60,6 +158,33 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
         fecha_solicitud: new Date().toISOString().split('T')[0],
         archivo_respaldo: null,
     });
+
+    useEffect(() => {
+        if (empresas.length > 0 && !data.jefe_id) {
+            const initEmpId = empresas[0].id;
+            const initJefes = getFilteredJefes(initEmpId);
+            const initContas = getFilteredContabilidades(initEmpId, data.tipo_solicitud, data.monto, data.moneda);
+            setData((prev) => ({
+                ...prev,
+                empresa_id: initEmpId,
+                jefe_id: initJefes.length > 0 ? initJefes[0].id : '',
+                contabilidad_ids: initContas.length > 0 ? [initContas[0].id] : [],
+                contabilidad_id: initContas.length > 0 ? initContas[0].id : '',
+            }));
+        }
+    }, [empresas]);
+
+    const handleEmpresaChange = (newEmpId) => {
+        const filteredJ = getFilteredJefes(newEmpId);
+        const filteredC = getFilteredContabilidades(newEmpId, data.tipo_solicitud, data.monto, data.moneda);
+        setData((prev) => ({
+            ...prev,
+            empresa_id: newEmpId,
+            jefe_id: filteredJ.length > 0 ? filteredJ[0].id : '',
+            contabilidad_ids: filteredC.length > 0 ? [filteredC[0].id] : [],
+            contabilidad_id: filteredC.length > 0 ? filteredC[0].id : '',
+        }));
+    };
 
     const getSolicitanteEmail = (empId) => {
         if (!empId || !auth?.user) return null;
@@ -106,30 +231,6 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
             }
         }
         return conta.correo;
-    };
-
-    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
-        if (!empId) return contabilidades;
-        const selectedEmp = empresas.find((e) => e.id == empId);
-        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
-        const isFralak = empNombre.includes('fralak');
-        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
-
-        return contabilidades.filter((c) => {
-            const rol = (c.rol?.nombre || '').toLowerCase();
-            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
-
-            if (isFralak) {
-                if (isCajaChica) {
-                    return isUserCajaChica;
-                } else {
-                    return !isUserCajaChica;
-                }
-            } else {
-                // Dotmed y CID: NUNCA pueden seleccionar a Caja Chica de Fralak
-                return !isUserCajaChica;
-            }
-        });
     };
 
     const handleCreateSubmit = (e) => {
@@ -416,7 +517,7 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
             {/* Modal: Crear Nueva Solicitud */}
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl lg:max-w-4xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-5xl xl:max-w-6xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                         <button
                             onClick={() => setShowCreateModal(false)}
                             className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -443,79 +544,79 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
                                     <select
                                         required
                                         value={data.empresa_id}
-                                        onChange={(e) => setData('empresa_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none font-semibold text-emerald-300"
+                                        onChange={(e) => handleEmpresaChange(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(data.empresa_id).borderClass} text-xs focus:ring-2 outline-none font-bold ${getEmpresaColorInfo(data.empresa_id).textColor}`}
+                                        style={{ color: getEmpresaColorInfo(data.empresa_id).hexColor }}
                                     >
-                                        {empresas.map((emp) => (
-                                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                                        ))}
+                                        {empresas.map((emp) => {
+                                            const itemColor = getEmpresaColorInfo(emp);
+                                            return (
+                                                <option
+                                                    key={emp.id}
+                                                    value={emp.id}
+                                                    style={{
+                                                        color: itemColor.hexColor,
+                                                        backgroundColor: '#020617',
+                                                        fontWeight: '700',
+                                                    }}
+                                                >
+                                                    {emp.nombre}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                     {getSolicitanteEmail(data.empresa_id) && (
-                                        <p className="text-[10px] text-emerald-400 mt-1 font-mono">
+                                        <p className={`text-[10px] ${getEmpresaColorInfo(data.empresa_id).textColor} mt-1 font-mono`}>
                                             Origen: <strong>{getSolicitanteEmail(data.empresa_id)}</strong>
                                         </p>
                                     )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Jefe Aprobador <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        required
-                                        value={data.jefe_id}
-                                        onChange={(e) => setData('jefe_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none font-semibold text-cyan-300"
-                                    >
-                                        <option value="">Selecciona tu Jefe...</option>
-                                        {jefes.map((jefe) => (
-                                            <option key={jefe.id} value={jefe.id}>{jefe.nombre_completo} ({jefe.cargo})</option>
-                                        ))}
-                                    </select>
-                                    {getSelectedJefeEmail(data.jefe_id, data.empresa_id) && (
-                                        <p className="text-[10px] text-cyan-400 mt-1 font-mono">
-                                            Destino (Jefe): <strong>{getSelectedJefeEmail(data.jefe_id, data.empresa_id)}</strong>
-                                        </p>
-                                    )}
+                                    <JefeMultiSelect
+                                        jefes={jefes}
+                                        empresaId={data.empresa_id}
+                                        selectedIds={data.jefe_ids || []}
+                                        onChange={(ids) => setData((prev) => ({
+                                            ...prev,
+                                            jefe_ids: ids,
+                                            jefe_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Jefe Aprobador"
+                                    />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Encargado Contabilidad <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        value={data.contabilidad_id}
-                                        onChange={(e) => setData('contabilidad_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none font-semibold text-amber-300"
-                                    >
-                                        <option value="">Selecciona Contabilidad...</option>
-                                        {getFilteredContabilidades(data.empresa_id, data.tipo_solicitud, data.monto, data.moneda).map((c) => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.nombre_completo} ({c.rol?.nombre === 'Caja Chica' ? '🪙 Encargada Caja Chica Fralak' : (c.cargo || c.rol?.nombre || 'Contabilidad')})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {getSelectedContaEmail(data.contabilidad_id, data.empresa_id) && (
-                                        <p className="text-[10px] text-amber-400 mt-1 font-mono">
-                                            Destino (Conta): <strong>{getSelectedContaEmail(data.contabilidad_id, data.empresa_id)}</strong>
-                                        </p>
-                                    )}
+                                    <ContabilidadMultiSelect
+                                        contabilidades={contabilidades}
+                                        empresaId={data.empresa_id}
+                                        tipoSol={data.tipo_solicitud}
+                                        monto={data.monto}
+                                        moneda={data.moneda}
+                                        selectedIds={data.contabilidad_ids || []}
+                                        onChange={(ids) => setData((prev) => ({
+                                            ...prev,
+                                            contabilidad_ids: ids,
+                                            contabilidad_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Encargado Contabilidad"
+                                    />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Proveedor Destino <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        required
-                                        value={data.proveedor_id}
-                                        onChange={(e) => setData('proveedor_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    >
-                                        {proveedores.map((prov) => (
-                                            <option key={prov.id} value={prov.id}>{prov.nombre_razon_social} ({prov.banco})</option>
-                                        ))}
-                                    </select>
+                                    <ProveedorSearchSelect
+                                        proveedores={proveedores}
+                                        selectedId={data.proveedor_id}
+                                        onChange={(id) => setData('proveedor_id', id)}
+                                        onOpenQuickCreate={(prefill) => {
+                                            resetProv();
+                                            if (prefill) setProvData('nombre_razon_social', prefill);
+                                            setShowQuickProvModal(true);
+                                        }}
+                                        label="Proveedor / Beneficiario"
+                                    />
                                 </div>
                             </div>
 
@@ -692,6 +793,135 @@ export default function Dashboard({ stats, solicitudesRecientes = [], empresas =
                                 Cerrar Vista Previa
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL REGISTRO RÁPIDO DE PROVEEDOR */}
+            {showQuickProvModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Truck className="w-5 h-5 text-indigo-400" />
+                                    <span>Registrar Nuevo Proveedor</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Guarda el proveedor para seleccionarlo en tus solicitudes
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowQuickProvModal(false)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleQuickProvSubmit} className="space-y-3 mt-3 text-xs">
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
+                                    value={provData.nombre_razon_social}
+                                    onChange={(e) => setProvData('nombre_razon_social', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
+                                    value={provData.descripcion}
+                                    onChange={(e) => setProvData('descripcion', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: 1029384756"
+                                        value={provData.nit_ci}
+                                        onChange={(e) => setProvData('nit_ci', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Banco</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: BCP / Bisa"
+                                        value={provData.banco}
+                                        onChange={(e) => setProvData('banco', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Tipo de Cuenta</label>
+                                    <select
+                                        value={provData.tipo_cuenta}
+                                        onChange={(e) => setProvData('tipo_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    >
+                                        <option value="Caja de Ahorro">Caja de Ahorro</option>
+                                        <option value="Cuenta Corriente">Cuenta Corriente</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: 1234567890"
+                                        value={provData.numero_cuenta}
+                                        onChange={(e) => setProvData('numero_cuenta', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">Titular de Cuenta</label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre del titular"
+                                    value={provData.nombre_titular_cuenta}
+                                    onChange={(e) => setProvData('nombre_titular_cuenta', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowQuickProvModal(false)}
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={provProcessing}
+                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5"
+                                >
+                                    <Truck className="w-3.5 h-3.5" />
+                                    <span>{provProcessing ? 'Guardando...' : 'Guardar Proveedor'}</span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

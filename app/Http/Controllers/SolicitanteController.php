@@ -57,12 +57,12 @@ class SolicitanteController extends Controller
             ->get();
 
         $empresas = Empresa::all();
-        $proveedores = Proveedor::all();
+        $proveedores = Proveedor::orderBy('nombre_razon_social')->get();
         $jefes = User::with('empresas')->whereHas('rol', function ($q) {
             $q->whereIn('nombre', ['Jefe', 'Jefatura']);
         })->get();
         $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
         })->get();
 
         return Inertia::render('Solicitante/Dashboard', [
@@ -117,12 +117,12 @@ class SolicitanteController extends Controller
 
         $solicitudes = $query->paginate(10)->withQueryString();
         $empresas = Empresa::all();
-        $proveedores = Proveedor::all();
+        $proveedores = Proveedor::orderBy('nombre_razon_social')->get();
         $jefes = User::with('empresas')->whereHas('rol', function ($q) {
             $q->whereIn('nombre', ['Jefe', 'Jefatura']);
         })->get();
         $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
         })->get();
 
         // Conteo de observadas que requieren acción del solicitante
@@ -147,8 +147,12 @@ class SolicitanteController extends Controller
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
             'tipo_solicitud' => 'nullable|string|max:50',
-            'jefe_id' => 'required|exists:usuarios,id',
+            'jefe_id' => 'nullable|exists:usuarios,id',
+            'jefe_ids' => 'nullable|array',
+            'jefe_ids.*' => 'exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',
+            'contabilidad_ids' => 'nullable|array',
+            'contabilidad_ids.*' => 'exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
             'motivo_descripcion' => 'required|string|min:5',
             'monto' => 'required|numeric|min:0.01',
@@ -165,12 +169,29 @@ class SolicitanteController extends Controller
             $filePath = $request->file('archivo_respaldo')->store('respaldos', 'public');
         }
 
+        $jefeIds = $request->input('jefe_ids', []);
+        if (empty($jefeIds) && !empty($validated['jefe_id'])) {
+            $jefeIds = [(int)$validated['jefe_id']];
+        }
+        $primaryJefeId = !empty($jefeIds) ? $jefeIds[0] : ($validated['jefe_id'] ?? null);
+
+        $contaIds = $request->input('contabilidad_ids', []);
+        if (empty($contaIds) && !empty($validated['contabilidad_id'])) {
+            $contaIds = [(int)$validated['contabilidad_id']];
+        }
+        $primaryContaId = !empty($contaIds) ? $contaIds[0] : ($validated['contabilidad_id'] ?? null);
+
+        $isCajaChica = ($validated['moneda'] === 'BOB' && (float)$validated['monto'] > 0 && (float)$validated['monto'] <= 300);
+        $tipoSolCalculado = $isCajaChica ? 'Caja Chica' : ($validated['tipo_solicitud'] ?? 'Pago a Proveedor');
+
         $solicitud = Solicitud::create([
             'empresa_id' => $validated['empresa_id'],
             'solicitante_id' => auth()->id(),
-            'tipo_solicitud' => $validated['tipo_solicitud'] ?? 'Pago a Proveedor',
-            'jefe_id' => $validated['jefe_id'],
-            'contabilidad_id' => $validated['contabilidad_id'] ?? null,
+            'tipo_solicitud' => $tipoSolCalculado,
+            'jefe_id' => $primaryJefeId,
+            'jefe_ids' => !empty($jefeIds) ? $jefeIds : null,
+            'contabilidad_id' => $primaryContaId,
+            'contabilidad_ids' => !empty($contaIds) ? $contaIds : null,
             'proveedor_id' => $validated['proveedor_id'],
             'motivo_descripcion' => $validated['motivo_descripcion'],
             'monto' => $validated['monto'],
@@ -196,8 +217,12 @@ class SolicitanteController extends Controller
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
             'tipo_solicitud' => 'nullable|string|max:50',
-            'jefe_id' => 'required|exists:usuarios,id',
+            'jefe_id' => 'nullable|exists:usuarios,id',
+            'jefe_ids' => 'nullable|array',
+            'jefe_ids.*' => 'exists:usuarios,id',
             'contabilidad_id' => 'nullable|exists:usuarios,id',
+            'contabilidad_ids' => 'nullable|array',
+            'contabilidad_ids.*' => 'exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
             'motivo_descripcion' => 'required|string|min:5',
             'monto' => 'required|numeric|min:0.01',
@@ -215,6 +240,23 @@ class SolicitanteController extends Controller
             }
             $validated['archivo_respaldo_path'] = $request->file('archivo_respaldo')->store('respaldos', 'public');
         }
+
+        $jefeIds = $request->input('jefe_ids', []);
+        if (empty($jefeIds) && !empty($validated['jefe_id'])) {
+            $jefeIds = [(int)$validated['jefe_id']];
+        }
+        $validated['jefe_id'] = !empty($jefeIds) ? $jefeIds[0] : ($validated['jefe_id'] ?? null);
+        $validated['jefe_ids'] = !empty($jefeIds) ? $jefeIds : null;
+
+        $contaIds = $request->input('contabilidad_ids', []);
+        if (empty($contaIds) && !empty($validated['contabilidad_id'])) {
+            $contaIds = [(int)$validated['contabilidad_id']];
+        }
+        $validated['contabilidad_id'] = !empty($contaIds) ? $contaIds[0] : ($validated['contabilidad_id'] ?? null);
+        $validated['contabilidad_ids'] = !empty($contaIds) ? $contaIds : null;
+
+        $isCajaChica = ($validated['moneda'] === 'BOB' && (float)$validated['monto'] > 0 && (float)$validated['monto'] <= 300);
+        $validated['tipo_solicitud'] = $isCajaChica ? 'Caja Chica' : ($validated['tipo_solicitud'] ?? 'Pago a Proveedor');
 
         // Si estaba observada, al editarla el solicitante se re-envía a revisión en estado Pendiente
         if ($solicitud->estado === 'Observado') {

@@ -44,6 +44,22 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'stream' => [
+                'ssl' => [
+                    'allow_self_signed' => true,
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ],
+            ],
+        ],
+
+        'zoho' => [
+            'transport' => 'zoho',
+            'client_id' => env('ZOHO_CLIENT_ID', '1000.RM6T2D50KLYXR9CWDDZFKUUYI3FFOD'),
+            'client_secret' => env('ZOHO_CLIENT_SECRET', 'e78fba230a3a5ea68bf2297125bebe287b2123df21'),
+            'refresh_token' => env('ZOHO_REFRESH_TOKEN', '1000.11453557c2ef9b3b7619d4b416bbdea0.233660f47fd9bde338b2d469b1b964eb'),
+            'account_id' => env('ZOHO_ACCOUNT_ID', '4064114000000008002'),
+            'api_domain' => env('ZOHO_API_DOMAIN', 'https://mail.zoho.com'),
         ],
 
         'ses' => [

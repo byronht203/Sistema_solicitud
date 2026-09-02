@@ -153,20 +153,28 @@ class SolicitudEstadoMail extends Mailable
                 }
             }
 
-            // 2. Si el estado es "Aprobado_Jefatura", notificar a la persona de Contabilidad/Caja Chica asignada o a los encargados de esa empresa
+            // 2. Si el estado es "Aprobado_Jefatura", notificar a la persona o personas de Contabilidad/Caja Chica asignadas
             if ($solicitud->estado === 'Aprobado_Jefatura') {
                 $isFralak = str_contains(strtolower($solicitud->empresa ? $solicitud->empresa->nombre : ''), 'fralak');
                 $isCajaChica = ($solicitud->tipo_solicitud === 'Caja Chica') || ($solicitud->moneda === 'BOB' && $solicitud->monto <= 300);
 
-                if ($solicitud->contabilidad) {
+                $contaUsersList = $solicitud->contabilidades_asignadas;
+                if ($contaUsersList && count($contaUsersList) > 0) {
+                    foreach ($contaUsersList as $cu) {
+                        $correoConta = $cu->getCorreoCorporativoParaEmpresa($empresaId);
+                        if ($correoConta) {
+                            $destinatarios[] = $correoConta;
+                        }
+                    }
+                } elseif ($solicitud->contabilidad) {
                     $correoConta = $solicitud->contabilidad->getCorreoCorporativoParaEmpresa($empresaId);
                     if ($correoConta) {
                         $destinatarios[] = $correoConta;
                     }
                 } elseif ($isFralak && $isCajaChica) {
-                    // Notificar a la encargada de Caja Chica Fralak (Maribel Caero)
+                    // Notificar a la encargada de Caja Chica Fralak
                     $cajaUsers = User::whereHas('rol', function ($q) {
-                        $q->whereIn('nombre', ['Caja Chica', 'Cajachica']);
+                        $q->whereIn('nombre', ['Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
                     })->get();
                     foreach ($cajaUsers as $c) {
                         $correo = $c->getCorreoCorporativoParaEmpresa($empresaId);
@@ -176,7 +184,7 @@ class SolicitudEstadoMail extends Mailable
                     }
                 } else {
                     $contaUsers = User::whereHas('rol', function ($q) {
-                        $q->whereIn('nombre', ['Contabilidad', 'Conta']);
+                        $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
                     })->get();
                     foreach ($contaUsers as $c) {
                         $correoConta = $c->getCorreoCorporativoParaEmpresa($empresaId);
@@ -187,8 +195,16 @@ class SolicitudEstadoMail extends Mailable
                 }
             }
 
-            // 3. Si el estado es "Pagado", notificar también al Jefe Aprobador para su conocimiento
-            if ($solicitud->estado === 'Pagado' && $solicitud->jefe) {
+            // 3. Notificar también al Jefe Aprobador y jefes en copia para su conocimiento
+            $jefesList = $solicitud->jefes_asignados;
+            if ($jefesList && count($jefesList) > 0) {
+                foreach ($jefesList as $ju) {
+                    $correoJefe = $ju->getCorreoCorporativoParaEmpresa($empresaId);
+                    if ($correoJefe) {
+                        $destinatarios[] = $correoJefe;
+                    }
+                }
+            } elseif ($solicitud->jefe) {
                 $correoJefe = $solicitud->jefe->getCorreoCorporativoParaEmpresa($empresaId);
                 if ($correoJefe) {
                     $destinatarios[] = $correoJefe;

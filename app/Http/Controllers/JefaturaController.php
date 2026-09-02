@@ -7,6 +7,7 @@ use App\Models\Proveedor;
 use App\Models\Empresa;
 use App\Models\User;
 use App\Mail\SolicitudEstadoMail;
+use App\Mail\SolicitudNuevaMail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +29,8 @@ class JefaturaController extends Controller
 
         return Solicitud::where(function ($q) use ($jefeId, $empresaIds) {
             $q->where('jefe_id', $jefeId)
+              ->orWhereJsonContains('jefe_ids', (int)$jefeId)
+              ->orWhereJsonContains('jefe_ids', (string)$jefeId)
               ->orWhere('revisado_por_jefe_id', $jefeId)
               ->orWhere('solicitante_id', $jefeId);
 
@@ -104,9 +107,12 @@ class JefaturaController extends Controller
             ->get();
 
         $empresas = Empresa::all();
-        $proveedores = Proveedor::all();
+        $proveedores = Proveedor::orderBy('nombre_razon_social')->get();
         $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
+        })->get();
+        $jefes = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Jefe', 'Jefatura', 'Gerente', 'Gerencia']);
         })->get();
 
         return Inertia::render('Jefatura/Dashboard', [
@@ -128,6 +134,7 @@ class JefaturaController extends Controller
             'empresas' => $empresas,
             'proveedores' => $proveedores,
             'contabilidades' => $contabilidades,
+            'jefes' => $jefes,
         ]);
     }
 
@@ -234,9 +241,12 @@ class JefaturaController extends Controller
 
         $solicitudes = $query->paginate(12)->withQueryString();
         $empresas = Empresa::all();
-        $proveedores = Proveedor::all();
+        $proveedores = Proveedor::orderBy('nombre_razon_social')->get();
         $contabilidades = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
-            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica']);
+            $q->whereIn('nombre', ['Contabilidad', 'Conta', 'Caja Chica', 'Cajachica', 'Contabilidad - Caja Chica', 'Contabilidad-Caja Chica']);
+        })->get();
+        $jefes = User::with(['rol', 'empresas'])->whereHas('rol', function ($q) {
+            $q->whereIn('nombre', ['Jefe', 'Jefatura', 'Gerente', 'Gerencia']);
         })->get();
 
         // Badges de Mis Solicitudes
@@ -252,6 +262,7 @@ class JefaturaController extends Controller
             'empresas' => $empresas,
             'proveedores' => $proveedores,
             'contabilidades' => $contabilidades,
+            'jefes' => $jefes,
             'badgeTodas' => $badgeTodas,
             'badgeEnCola' => $badgeEnCola,
             'badgePagadas' => $badgePagadas,
@@ -270,7 +281,12 @@ class JefaturaController extends Controller
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
             'tipo_solicitud' => 'nullable|string|max:50',
-            'contabilidad_id' => 'required|exists:usuarios,id',
+            'jefe_id' => 'nullable|exists:usuarios,id',
+            'jefe_ids' => 'nullable|array',
+            'jefe_ids.*' => 'exists:usuarios,id',
+            'contabilidad_id' => 'nullable|exists:usuarios,id',
+            'contabilidad_ids' => 'nullable|array',
+            'contabilidad_ids.*' => 'exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
             'motivo_descripcion' => 'required|string|min:5',
             'monto' => 'required|numeric|min:0.01',
@@ -289,13 +305,38 @@ class JefaturaController extends Controller
 
         $jefeUser = auth()->user();
 
+        // Jefes aprobadores seleccionados (para Eduardo / solicitudes que requieren visto bueno de Gerencia)
+        $jefeIds = $request->input('jefe_ids', []);
+        if (empty($jefeIds) && !empty($validated['jefe_id'])) {
+            $jefeIds = [(int)$validated['jefe_id']];
+        }
+        $primaryJefeId = !empty($jefeIds) ? $jefeIds[0] : ($validated['jefe_id'] ?? null);
+
+        // Si el usuario es Eduardo o seleccionó a otro aprobador (Gerente):
+        $requiereAprobacionGerente = !empty($primaryJefeId) && $primaryJefeId != $jefeUser->id;
+        $estadoInicial = $requiereAprobacionGerente ? 'Pendiente' : 'Aprobado_Jefatura';
+        $comentarioInicial = $requiereAprobacionGerente 
+            ? 'Solicitud emitida por ' . $jefeUser->nombre_completo . ' (' . ($jefeUser->cargo ?: 'Auditoría') . '). En espera de visto bueno y aprobación de Gerencia.'
+            : 'Solicitud emitida y aprobada directamente por Jefatura (' . $jefeUser->nombre_completo . '). Lista para desembolso contable.';
+
+        $contaIds = $request->input('contabilidad_ids', []);
+        if (empty($contaIds) && !empty($validated['contabilidad_id'])) {
+            $contaIds = [(int)$validated['contabilidad_id']];
+        }
+        $primaryContaId = !empty($contaIds) ? $contaIds[0] : ($validated['contabilidad_id'] ?? null);
+
+        $isCajaChica = ($validated['moneda'] === 'BOB' && (float)$validated['monto'] > 0 && (float)$validated['monto'] <= 300);
+        $tipoSolCalculado = $isCajaChica ? 'Caja Chica' : ($validated['tipo_solicitud'] ?? 'Pago a Proveedor');
+
         $solicitud = Solicitud::create([
             'empresa_id' => $validated['empresa_id'],
             'solicitante_id' => $jefeUser->id,
-            'tipo_solicitud' => $validated['tipo_solicitud'] ?? 'Pago a Proveedor',
-            'jefe_id' => $jefeUser->id,
-            'revisado_por_jefe_id' => $jefeUser->id,
-            'contabilidad_id' => $validated['contabilidad_id'],
+            'tipo_solicitud' => $tipoSolCalculado,
+            'jefe_id' => $primaryJefeId ?: $jefeUser->id,
+            'jefe_ids' => !empty($jefeIds) ? $jefeIds : [$primaryJefeId ?: $jefeUser->id],
+            'revisado_por_jefe_id' => $requiereAprobacionGerente ? null : $jefeUser->id,
+            'contabilidad_id' => $primaryContaId,
+            'contabilidad_ids' => !empty($contaIds) ? $contaIds : null,
             'proveedor_id' => $validated['proveedor_id'],
             'motivo_descripcion' => $validated['motivo_descripcion'],
             'monto' => $validated['monto'],
@@ -305,14 +346,19 @@ class JefaturaController extends Controller
             'modalidad_pago' => $validated['modalidad_pago'],
             'fecha_solicitud' => $validated['fecha_solicitud'],
             'archivo_respaldo_path' => $filePath,
-            'estado' => 'Aprobado_Jefatura',
-            'comentarios_revision' => 'Solicitud emitida y aprobada directamente por Jefatura (' . $jefeUser->nombre_completo . '). Lista para desembolso contable.',
+            'estado' => $estadoInicial,
+            'comentarios_revision' => $comentarioInicial,
         ]);
 
-        // Notificar por correo directamente al encargado de Contabilidad / Caja Chica y al Jefe
-        SolicitudEstadoMail::notificarCambioEstado($solicitud);
+        if ($requiereAprobacionGerente) {
+            SolicitudNuevaMail::notificarJefatura($solicitud);
+            $msgSuccess = '¡Solicitud registrada con éxito! Ha sido enviada para su correspondiente revisión y aprobación.';
+        } else {
+            SolicitudEstadoMail::notificarCambioEstado($solicitud);
+            $msgSuccess = '¡Solicitud registrada y autorizada con éxito! Ha sido enviada directamente a Contabilidad para su desembolso.';
+        }
 
-        return redirect()->back()->with('success', '¡Solicitud registrada y autorizada con éxito! Ha sido enviada directamente a Contabilidad para su desembolso.');
+        return redirect()->back()->with('success', $msgSuccess);
     }
 
     /**
@@ -328,7 +374,12 @@ class JefaturaController extends Controller
         $validated = $request->validate([
             'empresa_id' => 'required|exists:empresas,id',
             'tipo_solicitud' => 'nullable|string|max:50',
-            'contabilidad_id' => 'required|exists:usuarios,id',
+            'jefe_id' => 'nullable|exists:usuarios,id',
+            'jefe_ids' => 'nullable|array',
+            'jefe_ids.*' => 'exists:usuarios,id',
+            'contabilidad_id' => 'nullable|exists:usuarios,id',
+            'contabilidad_ids' => 'nullable|array',
+            'contabilidad_ids.*' => 'exists:usuarios,id',
             'proveedor_id' => 'required|exists:proveedores,id',
             'motivo_descripcion' => 'required|string|min:5',
             'monto' => 'required|numeric|min:0.01',
@@ -347,18 +398,40 @@ class JefaturaController extends Controller
             $validated['archivo_respaldo_path'] = $request->file('archivo_respaldo')->store('respaldos', 'public');
         }
 
-        // Si estaba observada por contabilidad, al editarla vuelve a Aprobado_Jefatura
+        $jefeIds = $request->input('jefe_ids', []);
+        if (empty($jefeIds) && !empty($validated['jefe_id'])) {
+            $jefeIds = [(int)$validated['jefe_id']];
+        }
+        $primaryJefeId = !empty($jefeIds) ? $jefeIds[0] : ($validated['jefe_id'] ?? null);
+        if (!empty($primaryJefeId)) {
+            $validated['jefe_id'] = $primaryJefeId;
+            $validated['jefe_ids'] = $jefeIds;
+        }
+
+        $contaIds = $request->input('contabilidad_ids', []);
+        if (empty($contaIds) && !empty($validated['contabilidad_id'])) {
+            $contaIds = [(int)$validated['contabilidad_id']];
+        }
+        $validated['contabilidad_id'] = !empty($contaIds) ? $contaIds[0] : ($validated['contabilidad_id'] ?? null);
+        $validated['contabilidad_ids'] = !empty($contaIds) ? $contaIds : null;
+
+        $requiereAprobacionGerente = !empty($primaryJefeId) && $primaryJefeId != $jefeUser->id;
+
+        // Si estaba observada, re-enviar según el flujo
         if ($solicitud->estado === 'Observado') {
-            $validated['estado'] = 'Aprobado_Jefatura';
-            $validated['comentarios_revision'] = 'Subsanado y re-aprobado por Jefatura: ' . now()->format('Y-m-d H:i');
+            $validated['estado'] = $requiereAprobacionGerente ? 'Pendiente' : 'Aprobado_Jefatura';
+            $validated['comentarios_revision'] = 'Subsanado y re-enviado: ' . now()->format('Y-m-d H:i');
         }
 
         $solicitud->update($validated);
 
-        // Notificar a contabilidad
-        SolicitudEstadoMail::notificarCambioEstado($solicitud);
+        if ($requiereAprobacionGerente) {
+            SolicitudNuevaMail::notificarJefatura($solicitud);
+        } else {
+            SolicitudEstadoMail::notificarCambioEstado($solicitud);
+        }
 
-        return redirect()->back()->with('success', 'Solicitud actualizada correctamente y re-enviada a Contabilidad.');
+        return redirect()->back()->with('success', 'Solicitud actualizada correctamente.');
     }
 
     /**

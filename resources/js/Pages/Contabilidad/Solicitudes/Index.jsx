@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ContabilidadLayout from '@/Layouts/ContabilidadLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Search,
     Filter,
@@ -26,7 +26,10 @@ import {
     Coins
 } from 'lucide-react';
 
-export default function Index({ solicitudes, empresas = [], proveedores = [], badgePorPagar = 0, badgeCajaChica = 0, badgeRegulares = 0, isCajaChica = false, filters = {} }) {
+export default function Index({ solicitudes, empresas = [], proveedores = [], badgePorPagar = 0, badgeCajaChica = 0, badgeRegulares = 0, isCajaChica = false, isSoloMayores = false, isMixto = false, filters = {} }) {
+    const { auth } = usePage().props;
+    const userIsSoloMayores = isSoloMayores;
+
     const [search, setSearch] = useState(filters.search || '');
     const [estado, setEstado] = useState(filters.estado || 'Aprobado_Jefatura');
     const [tipoMonto, setTipoMonto] = useState(filters.tipo_monto || '');
@@ -50,6 +53,43 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
     const { data: observeData, setData: setObserveData, post: postObserve, processing: observeProcessing, reset: resetObserve } = useForm({
         comentarios_revision: '',
     });
+
+    const getEmpresaColorInfo = (empIdOrEmp) => {
+        let name = '';
+        if (typeof empIdOrEmp === 'object' && empIdOrEmp !== null) {
+            name = empIdOrEmp.nombre || '';
+        } else if (typeof empIdOrEmp === 'number' || typeof empIdOrEmp === 'string') {
+            const found = (empresas || []).find((e) => Number(e.id) === Number(empIdOrEmp));
+            name = found?.nombre || '';
+        }
+        const lower = name.toLowerCase();
+        if (lower.includes('fralak')) {
+            return {
+                textColor: 'text-rose-400',
+                hexColor: '#fb7185', // Rojo Vino
+                borderClass: 'border-rose-500/40 focus:ring-rose-500',
+            };
+        }
+        if (lower.includes('dotmed')) {
+            return {
+                textColor: 'text-teal-400',
+                hexColor: '#2dd4bf', // Verde Azulado
+                borderClass: 'border-teal-500/40 focus:ring-teal-500',
+            };
+        }
+        if (lower.includes('cid')) {
+            return {
+                textColor: 'text-sky-400',
+                hexColor: '#38bdf8', // Azul Petróleo
+                borderClass: 'border-sky-500/40 focus:ring-sky-500',
+            };
+        }
+        return {
+            textColor: 'text-emerald-400',
+            hexColor: '#34d399',
+            borderClass: 'border-slate-800 focus:ring-cyan-500',
+        };
+    };
 
     const handleFilterSubmit = (e) => {
         e?.preventDefault();
@@ -179,17 +219,34 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
     };
 
     return (
-        <ContabilidadLayout title={isCajaChica ? "Solicitudes Caja Chica (Fralak SRL)" : "Solicitudes por Pagar y Gestión Contable"} badgePorPagar={badgePorPagar}>
+        <ContabilidadLayout
+            title={
+                isCajaChica
+                    ? "Solicitudes Caja Chica (Fralak SRL)"
+                    : userIsSoloMayores
+                    ? "Solicitudes Mayores (Fralak SRL)"
+                    : "Solicitudes por Pagar y Gestión Contable"
+            }
+            badgePorPagar={badgePorPagar}
+        >
             {/* Top Title & Filters Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                         <CreditCard className="w-6 h-6 text-emerald-400" />
-                        <span>{isCajaChica ? 'Bandeja de Pagos - Caja Chica Fralak SRL' : 'Gestión de Pagos y Desembolsos'}</span>
+                        <span>
+                            {isCajaChica
+                                ? 'Bandeja de Pagos - Caja Chica Fralak SRL'
+                                : userIsSoloMayores
+                                ? 'Gestión de Desembolsos Mayores (> 300 BOB / USD)'
+                                : 'Gestión de Pagos y Desembolsos'}
+                        </span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                         {isCajaChica
                             ? 'Revisa y procesa los desembolsos de Caja Chica exclusivamente para Fralak SRL (Monto máximo 300 BOB).'
+                            : userIsSoloMayores
+                            ? 'Revisa los datos bancarios, adjuntos de respaldo y procesa desembolsos de solicitudes regulares y compras mayores (> 300 BOB / USD).'
                             : 'Revisa los datos bancarios, adjuntos de respaldo y procesa desembolsos separados por Caja Chica (≤ 300 BOB) o Pagos Regulares.'}
                     </p>
                 </div>
@@ -206,13 +263,19 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                     }`}
                 >
                     <Clock className="w-4 h-4" />
-                    <span>{isCajaChica ? 'Caja Chica por Pagar' : 'Todas por Desembolsar'}</span>
+                    <span>
+                        {isCajaChica
+                            ? 'Caja Chica por Pagar'
+                            : userIsSoloMayores
+                            ? 'Por Desembolsar (> 300 BOB / USD)'
+                            : 'Todas por Desembolsar'}
+                    </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-950/40 text-amber-200">
                         {badgePorPagar}
                     </span>
                 </button>
 
-                {!isCajaChica && (
+                {!isCajaChica && !userIsSoloMayores && (
                     <button
                         onClick={() => handleTabChange('Aprobado_Jefatura', 'caja_chica')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
@@ -229,7 +292,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                     </button>
                 )}
 
-                {!isCajaChica && (
+                {!isCajaChica && !userIsSoloMayores && (
                     <button
                         onClick={() => handleTabChange('Aprobado_Jefatura', 'regular')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
@@ -284,7 +347,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
 
             {/* Filter Search Form */}
             <form onSubmit={handleFilterSubmit} className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl mb-6">
-                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCajaChica ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-3`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCajaChica || userIsSoloMayores ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3`}>
                     <div className="relative">
                         <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                         <input
@@ -296,7 +359,7 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         />
                     </div>
 
-                    {!isCajaChica && (
+                    {!isCajaChica && !userIsSoloMayores && (
                         <div>
                             <select
                                 value={tipoMonto}
@@ -314,12 +377,26 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                         <select
                             value={empresaId}
                             onChange={(e) => setEmpresaId(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                            className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(empresaId).borderClass} text-xs focus:ring-2 outline-none font-bold ${empresaId ? getEmpresaColorInfo(empresaId).textColor : 'text-slate-300'}`}
+                            style={empresaId ? { color: getEmpresaColorInfo(empresaId).hexColor } : {}}
                         >
-                            <option value="">Todas las Empresas</option>
-                            {empresas.map((emp) => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
+                            <option value="" style={{ color: '#cbd5e1', backgroundColor: '#020617' }}>Todas las Empresas</option>
+                            {empresas.map((emp) => {
+                                const itemColor = getEmpresaColorInfo(emp);
+                                return (
+                                    <option
+                                        key={emp.id}
+                                        value={emp.id}
+                                        style={{
+                                            color: itemColor.hexColor,
+                                            backgroundColor: '#020617',
+                                            fontWeight: '700',
+                                        }}
+                                    >
+                                        {emp.nombre}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
@@ -507,13 +584,13 @@ export default function Index({ solicitudes, empresas = [], proveedores = [], ba
                                                             <button
                                                                 onClick={() => openPayModal(solicitud)}
                                                                 className={`px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition flex items-center gap-1 ${
-                                                                    isCajaChica
+                                                                    isCajaChica && !userIsSoloMayores
                                                                         ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/20'
                                                                         : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
                                                                 }`}
                                                             >
                                                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                                                <span>{isCajaChica ? 'Pagar Caja Chica' : 'Pagar'}</span>
+                                                                <span>{isCajaChica && !userIsSoloMayores ? 'Pagar Caja Chica' : 'Procesar Pago'}</span>
                                                             </button>
 
                                                             <button

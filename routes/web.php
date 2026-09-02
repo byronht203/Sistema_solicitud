@@ -40,7 +40,7 @@ Route::middleware(['auth'])->group(function () {
         if ($user && $user->esJefe()) {
             return redirect()->route('jefatura.dashboard');
         }
-        if ($user && ($user->esContabilidad() || $user->esCajaChica())) {
+        if ($user && $user->esContaOCajaChica()) {
             return redirect()->route('contabilidad.dashboard');
         }
         return app(AdminDashboardController::class)->index();
@@ -108,6 +108,41 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Diagnóstico SMTP en Producción
+    Route::get('/diagnostico-smtp', function (\Illuminate\Http\Request $request) {
+        $to = $request->get('to', config('mail.from.address'));
+        try {
+            \Illuminate\Support\Facades\Mail::raw("✅ ¡Prueba de conexión SMTP exitosa desde cPanel/Nube!\n\nFecha: " . now()->toDateTimeString(), function ($msg) use ($to) {
+                $msg->to($to)->subject('✅ Prueba Exitosa de Correo - Sistema de Solicitudes');
+            });
+            return response()->json([
+                'success' => true,
+                'mensaje' => "Correo de prueba enviado con éxito a {$to}",
+                'config' => [
+                    'mailer' => config('mail.default'),
+                    'host' => config('mail.mailers.smtp.host'),
+                    'port' => config('mail.mailers.smtp.port'),
+                    'encryption' => config('mail.mailers.smtp.encryption'),
+                    'username' => config('mail.mailers.smtp.username'),
+                    'from' => config('mail.from.address'),
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'config' => [
+                    'mailer' => config('mail.default'),
+                    'host' => config('mail.mailers.smtp.host'),
+                    'port' => config('mail.mailers.smtp.port'),
+                    'encryption' => config('mail.mailers.smtp.encryption'),
+                    'username' => config('mail.mailers.smtp.username'),
+                    'from' => config('mail.from.address'),
+                ]
+            ], 500);
+        }
+    })->name('diagnostico.smtp');
 });
 
 require __DIR__.'/auth.php';

@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import JefaturaLayout from '@/Layouts/JefaturaLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import ContabilidadMultiSelect from '@/Components/ContabilidadMultiSelect';
+import JefeMultiSelect from '@/Components/JefeMultiSelect';
+import ProveedorSearchSelect from '@/Components/ProveedorSearchSelect';
 import {
     Search,
     Filter,
@@ -23,7 +26,8 @@ import {
     Send,
     ShieldCheck,
     Coins,
-    CreditCard
+    CreditCard,
+    PlusCircle
 } from 'lucide-react';
 
 export default function Index({
@@ -31,6 +35,7 @@ export default function Index({
     empresas = [],
     proveedores = [],
     contabilidades = [],
+    jefes = [],
     badgeTodas = 0,
     badgeEnCola = 0,
     badgePagadas = 0,
@@ -39,6 +44,11 @@ export default function Index({
     activeEstado = 'todas',
     filters = {}
 }) {
+    const { auth } = usePage().props;
+    const authUser = auth?.user;
+    const isEduardo = (authUser?.nombre_completo || authUser?.nombre || '').toLowerCase().includes('eduardo') || 
+                      (authUser?.cargo || '').toLowerCase().includes('auditor');
+
     const [search, setSearch] = useState(filters.search || '');
     const [estado, setEstado] = useState(filters.estado || activeEstado || 'todas');
     const [empresaId, setEmpresaId] = useState(filters.empresa_id || '');
@@ -53,6 +63,28 @@ export default function Index({
     const [mailHtml, setMailHtml] = useState('');
     const [loadingMail, setLoadingMail] = useState(false);
 
+    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
+        if (!empId) return [];
+        const selectedEmp = empresas.find((e) => e.id == empId);
+        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
+        const isFralak = empNombre.includes('fralak');
+        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
+
+        return contabilidades.filter((c) => {
+            const belongsToCompany = (c.empresas || []).some((e) => e.id == empId);
+            if (!belongsToCompany) return false;
+
+            const rol = (c.rol?.nombre || '').toLowerCase();
+            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
+
+            if (isFralak) {
+                return isCajaChica ? isUserCajaChica : !isUserCajaChica;
+            } else {
+                return !isUserCajaChica;
+            }
+        });
+    };
+
     // Formulario para crear solicitud directamente como Jefe
     const {
         data: createData,
@@ -64,7 +96,10 @@ export default function Index({
     } = useForm({
         empresa_id: empresas.length > 0 ? empresas[0].id : '',
         tipo_solicitud: 'Pago a Proveedor',
-        contabilidad_id: contabilidades.length > 0 ? contabilidades[0].id : '',
+        jefe_id: '',
+        jefe_ids: [],
+        contabilidad_id: '',
+        contabilidad_ids: [],
         proveedor_id: proveedores.length > 0 ? proveedores[0].id : '',
         motivo_descripcion: '',
         monto: '',
@@ -87,7 +122,10 @@ export default function Index({
     } = useForm({
         empresa_id: '',
         tipo_solicitud: 'Pago a Proveedor',
+        jefe_id: '',
+        jefe_ids: [],
         contabilidad_id: '',
+        contabilidad_ids: [],
         proveedor_id: '',
         motivo_descripcion: '',
         monto: '',
@@ -98,6 +136,39 @@ export default function Index({
         fecha_solicitud: '',
         archivo_respaldo: null,
     });
+
+    useEffect(() => {
+        if (empresas.length > 0 && !createData.contabilidad_id) {
+            const initEmpId = empresas[0].id;
+            const initContas = getFilteredContabilidades(initEmpId, createData.tipo_solicitud, createData.monto, createData.moneda);
+            setCreateData((prev) => ({
+                ...prev,
+                empresa_id: initEmpId,
+                contabilidad_ids: initContas.length > 0 ? [initContas[0].id] : [],
+                contabilidad_id: initContas.length > 0 ? initContas[0].id : '',
+            }));
+        }
+    }, [empresas]);
+
+    const handleCreateEmpresaChange = (newEmpId) => {
+        const filteredC = getFilteredContabilidades(newEmpId, createData.tipo_solicitud, createData.monto, createData.moneda);
+        setCreateData((prev) => ({
+            ...prev,
+            empresa_id: newEmpId,
+            contabilidad_ids: filteredC.length > 0 ? [filteredC[0].id] : [],
+            contabilidad_id: filteredC.length > 0 ? filteredC[0].id : '',
+        }));
+    };
+
+    const handleEditEmpresaChange = (newEmpId) => {
+        const filteredC = getFilteredContabilidades(newEmpId, editData.tipo_solicitud, editData.monto, editData.moneda);
+        setEditData((prev) => ({
+            ...prev,
+            empresa_id: newEmpId,
+            contabilidad_ids: filteredC.length > 0 ? [filteredC[0].id] : [],
+            contabilidad_id: filteredC.length > 0 ? filteredC[0].id : '',
+        }));
+    };
 
     // Formulario rápido para crear nuevo proveedor
     const {
@@ -117,30 +188,6 @@ export default function Index({
         nombre_titular_cuenta: '',
     });
 
-    // Helper para filtrar contabilidad según empresa y caja chica vs regular
-    const getFilteredContabilidades = (empId, tipoSol, montoNum, mon) => {
-        if (!empId) return contabilidades;
-        const selectedEmp = empresas.find((e) => e.id == empId);
-        const empNombre = (selectedEmp?.nombre || '').toLowerCase();
-        const isFralak = empNombre.includes('fralak');
-        const isCajaChica = tipoSol === 'Caja Chica' || (mon === 'BOB' && Number(montoNum) > 0 && Number(montoNum) <= 300);
-
-        return contabilidades.filter((c) => {
-            const rol = (c.rol?.nombre || '').toLowerCase();
-            const isUserCajaChica = rol.includes('caja chica') || rol.includes('cajachica');
-
-            if (isFralak) {
-                if (isCajaChica) {
-                    return isUserCajaChica;
-                } else {
-                    return !isUserCajaChica;
-                }
-            } else {
-                return !isUserCajaChica;
-            }
-        });
-    };
-
     const getSelectedContaEmail = (contaId, empId) => {
         if (!contaId) return null;
         const conta = contabilidades.find((c) => c.id == contaId);
@@ -152,6 +199,52 @@ export default function Index({
             }
         }
         return conta.correo;
+    };
+
+    const getSolicitanteEmail = (empId) => {
+        if (!empId || !authUser) return '';
+        const empPivot = (authUser.empresas || []).find((e) => Number(e.id) === Number(empId));
+        if (empPivot && empPivot.pivot && empPivot.pivot.correo_corporativo) {
+            return empPivot.pivot.correo_corporativo;
+        }
+        return authUser.correo || '';
+    };
+
+    const getEmpresaColorInfo = (empIdOrEmp) => {
+        let name = '';
+        if (typeof empIdOrEmp === 'object' && empIdOrEmp !== null) {
+            name = empIdOrEmp.nombre || '';
+        } else if (typeof empIdOrEmp === 'number' || typeof empIdOrEmp === 'string') {
+            const found = empresas.find((e) => Number(e.id) === Number(empIdOrEmp));
+            name = found?.nombre || '';
+        }
+        const lower = name.toLowerCase();
+        if (lower.includes('fralak')) {
+            return {
+                textColor: 'text-rose-400',
+                hexColor: '#fb7185', // Rojo Vino
+                borderClass: 'border-rose-500/40 focus:ring-rose-500',
+            };
+        }
+        if (lower.includes('dotmed')) {
+            return {
+                textColor: 'text-teal-400',
+                hexColor: '#2dd4bf', // Verde Azulado
+                borderClass: 'border-teal-500/40 focus:ring-teal-500',
+            };
+        }
+        if (lower.includes('cid')) {
+            return {
+                textColor: 'text-sky-400',
+                hexColor: '#38bdf8', // Azul Petróleo
+                borderClass: 'border-sky-500/40 focus:ring-sky-500',
+            };
+        }
+        return {
+            textColor: 'text-emerald-400',
+            hexColor: '#34d399',
+            borderClass: 'border-slate-800 focus:ring-cyan-500',
+        };
     };
 
     const handleFilterSubmit = (e) => {
@@ -184,10 +277,21 @@ export default function Index({
 
     const openEditModal = (sol) => {
         setSelectedSolicitud(sol);
+        const initialContaIds = Array.isArray(sol.contabilidad_ids) && sol.contabilidad_ids.length > 0
+            ? sol.contabilidad_ids.map(Number)
+            : (sol.contabilidad_id ? [Number(sol.contabilidad_id)] : []);
+
+        const initialJefeIds = Array.isArray(sol.jefe_ids) && sol.jefe_ids.length > 0
+            ? sol.jefe_ids.map(Number)
+            : (sol.jefe_id ? [Number(sol.jefe_id)] : []);
+
         setEditData({
             empresa_id: sol.empresa_id,
             tipo_solicitud: sol.tipo_solicitud || 'Pago a Proveedor',
-            contabilidad_id: sol.contabilidad_id || (contabilidades.length > 0 ? contabilidades[0].id : ''),
+            jefe_id: sol.jefe_id || '',
+            jefe_ids: initialJefeIds,
+            contabilidad_id: sol.contabilidad_id || '',
+            contabilidad_ids: initialContaIds,
             proveedor_id: sol.proveedor_id,
             motivo_descripcion: sol.motivo_descripcion,
             monto: sol.monto,
@@ -408,12 +512,26 @@ export default function Index({
                         <select
                             value={empresaId}
                             onChange={(e) => setEmpresaId(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-cyan-500 outline-none"
+                            className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(empresaId).borderClass} text-xs focus:ring-2 outline-none font-bold ${empresaId ? getEmpresaColorInfo(empresaId).textColor : 'text-slate-300'}`}
+                            style={empresaId ? { color: getEmpresaColorInfo(empresaId).hexColor } : {}}
                         >
-                            <option value="">Todas las Empresas</option>
-                            {empresas.map((emp) => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
+                            <option value="" style={{ color: '#cbd5e1', backgroundColor: '#020617' }}>Todas las Empresas</option>
+                            {empresas.map((emp) => {
+                                const itemColor = getEmpresaColorInfo(emp);
+                                return (
+                                    <option
+                                        key={emp.id}
+                                        value={emp.id}
+                                        style={{
+                                            color: itemColor.hexColor,
+                                            backgroundColor: '#020617',
+                                            fontWeight: '700',
+                                        }}
+                                    >
+                                        {emp.nombre}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
@@ -598,20 +716,25 @@ export default function Index({
                     </div>
                 )}
             </div>
-
-            {/* MODAL CREAR SOLICITUD DIRECTA PARA JEFATURA (SIN CAMPO DE JEFE) */}
+                       {/* MODAL CREAR SOLICITUD DIRECTA PARA JEFATURA / AUDITORÍA */}
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl my-8 relative">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-5xl xl:max-w-6xl w-full shadow-2xl my-8 relative max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                            <div>
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                                    <span>Nueva Solicitud Emitida por Jefatura</span>
-                                </h3>
-                                <p className="text-xs text-slate-400 mt-0.5">
-                                    Esta solicitud se aprueba directamente por tu cargo y se envía a Contabilidad / Caja Chica para su desembolso.
-                                </p>
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold text-xl shrink-0">
+                                    <PlusCircle className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <span>Nueva Solicitud de Desembolso</span>
+                                    </h3>
+                                    <p className="text-xs text-slate-400">
+                                        {isEduardo 
+                                            ? 'Completa los datos de la solicitud. Al ser emitida por Auditoría, será enviada a Gerencia para su aprobación.' 
+                                            : 'Ingresa los datos para la autorización de fondos y desembolso contable.'}
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 onClick={() => setShowCreateModal(false)}
@@ -622,107 +745,103 @@ export default function Index({
                         </div>
 
                         <form onSubmit={handleCreateSubmit} className="space-y-4 mt-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Banner informativo de flujo de Auditoría */}
+                            {isEduardo && (
+                                <div className="p-3 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl flex items-center gap-3">
+                                    <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0" />
+                                    <div className="text-xs text-indigo-200">
+                                        <strong className="text-white">Flujo de Auditoría:</strong> Al emitir esta solicitud como Auditor ({authUser?.nombre_completo}), pasará a revisión y visto bueno de <strong>Gerencia</strong> antes del desembolso por Contabilidad.
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 4 Columnas: Empresa, Jefe/Gerente Aprobador, Contabilidad, Proveedor */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Empresa Corporativa <span className="text-cyan-400">*</span>
+                                        Empresa Beneficiaria <span className="text-cyan-400">*</span>
                                     </label>
                                     <select
                                         required
                                         value={createData.empresa_id}
-                                        onChange={(e) => setCreateData('empresa_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        onChange={(e) => handleCreateEmpresaChange(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(createData.empresa_id).borderClass} text-xs focus:ring-2 outline-none font-bold ${getEmpresaColorInfo(createData.empresa_id).textColor}`}
+                                        style={{ color: getEmpresaColorInfo(createData.empresa_id).hexColor }}
                                     >
-                                        {empresas.map((emp) => (
-                                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                                        ))}
+                                        {empresas.map((emp) => {
+                                            const itemColor = getEmpresaColorInfo(emp);
+                                            return (
+                                                <option
+                                                    key={emp.id}
+                                                    value={emp.id}
+                                                    style={{
+                                                        color: itemColor.hexColor,
+                                                        backgroundColor: '#020617',
+                                                        fontWeight: '700',
+                                                    }}
+                                                >
+                                                    {emp.nombre}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Tipo de Solicitud <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        required
-                                        value={createData.tipo_solicitud}
-                                        onChange={(e) => setCreateData('tipo_solicitud', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    >
-                                        <option value="Pago a Proveedor">Pago a Proveedor (Regular)</option>
-                                        <option value="Caja Chica">Caja Chica (Gastos Menores ≤ 300 BOB)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Destino Contable / Caja Chica <span className="text-cyan-400">*</span>
-                                    </label>
-                                    <select
-                                        required
-                                        value={createData.contabilidad_id}
-                                        onChange={(e) => setCreateData('contabilidad_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-amber-300"
-                                    >
-                                        <option value="">Selecciona Contabilidad...</option>
-                                        {getFilteredContabilidades(createData.empresa_id, createData.tipo_solicitud, createData.monto, createData.moneda).map((c) => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.nombre_completo} ({c.rol?.nombre === 'Caja Chica' ? '🪙 Encargada Caja Chica Fralak' : (c.cargo || c.rol?.nombre || 'Contabilidad')})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {getSelectedContaEmail(createData.contabilidad_id, createData.empresa_id) && (
-                                        <p className="text-[10px] text-amber-400 mt-1 font-mono">
-                                            Destino (Conta): <strong>{getSelectedContaEmail(createData.contabilidad_id, createData.empresa_id)}</strong>
+                                    {getSolicitanteEmail(createData.empresa_id) && (
+                                        <p className={`text-[10px] ${getEmpresaColorInfo(createData.empresa_id).textColor} mt-1 font-mono`}>
+                                            Origen: <strong>{getSolicitanteEmail(createData.empresa_id)}</strong>
                                         </p>
                                     )}
                                 </div>
 
                                 <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="text-xs font-semibold text-slate-300">
-                                            Proveedor / Beneficiario <span className="text-cyan-400">*</span>
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowQuickProvModal(true)}
-                                            className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold hover:underline"
-                                        >
-                                            + Nuevo Proveedor
-                                        </button>
-                                    </div>
-                                    <select
-                                        required
-                                        value={createData.proveedor_id}
-                                        onChange={(e) => setCreateData('proveedor_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    >
-                                        {proveedores.map((prov) => (
-                                            <option key={prov.id} value={prov.id}>
-                                                {prov.nombre_razon_social} {prov.descripcion ? `— ${prov.descripcion}` : (prov.banco ? `(${prov.banco})` : '— Efectivo')}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <JefeMultiSelect
+                                        jefes={jefes}
+                                        empresaId={createData.empresa_id}
+                                        selectedIds={createData.jefe_ids || []}
+                                        onChange={(ids) => setCreateData((prev) => ({
+                                            ...prev,
+                                            jefe_ids: ids,
+                                            jefe_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        excludeUserId={authUser?.id}
+                                        label={isEduardo ? "Gerente Aprobador" : "Jefe / Gerente Aprobador"}
+                                    />
+                                </div>
+
+                                <div>
+                                    <ContabilidadMultiSelect
+                                        contabilidades={contabilidades}
+                                        empresaId={createData.empresa_id}
+                                        tipoSol={createData.tipo_solicitud}
+                                        monto={createData.monto}
+                                        moneda={createData.moneda}
+                                        selectedIds={createData.contabilidad_ids || []}
+                                        onChange={(ids) => setCreateData((prev) => ({
+                                            ...prev,
+                                            contabilidad_ids: ids,
+                                            contabilidad_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Encargado Contabilidad"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <ProveedorSearchSelect
+                                        proveedores={proveedores}
+                                        selectedId={createData.proveedor_id}
+                                        onChange={(id) => setCreateData('proveedor_id', id)}
+                                        onOpenQuickCreate={(prefill) => {
+                                            resetProv();
+                                            if (prefill) setProvData('nombre_razon_social', prefill);
+                                            setShowQuickProvModal(true);
+                                        }}
+                                        label="Proveedor / Beneficiario"
+                                    />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Motivo / Justificación del Gasto <span className="text-cyan-400">*</span>
-                                </label>
-                                <textarea
-                                    required
-                                    rows={2}
-                                    placeholder="Describe detalladamente el motivo de la compra, insumo médico o servicio hospitalario..."
-                                    value={createData.motivo_descripcion}
-                                    onChange={(e) => setCreateData('motivo_descripcion', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
                                         Monto <span className="text-cyan-400">*</span>
@@ -735,7 +854,7 @@ export default function Index({
                                         placeholder="0.00"
                                         value={createData.monto}
                                         onChange={(e) => setCreateData('monto', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                                     />
                                 </div>
 
@@ -744,38 +863,22 @@ export default function Index({
                                         Moneda <span className="text-cyan-400">*</span>
                                     </label>
                                     <select
+                                        required
                                         value={createData.moneda}
                                         onChange={(e) => setCreateData('moneda', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                                     >
-                                        <option value="BOB">Bolivianos (BOB)</option>
-                                        <option value="USD">Dólares (USD)</option>
+                                        <option value="BOB">BOB - Bolivianos</option>
+                                        <option value="USD">USD - Dólares Americanos</option>
                                     </select>
                                 </div>
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Modalidad de Pago
+                                        Tipo de Documento <span className="text-cyan-400">*</span>
                                     </label>
                                     <select
-                                        value={createData.modalidad_pago}
-                                        onChange={(e) => setCreateData('modalidad_pago', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    >
-                                        <option value="Transferencia">Transferencia Bancaria</option>
-                                        <option value="Cheque">Cheque</option>
-                                        <option value="Efectivo">Efectivo</option>
-                                        <option value="QR">Pago QR</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Documento
-                                    </label>
-                                    <select
+                                        required
                                         value={createData.tipo_documento}
                                         onChange={(e) => setCreateData('tipo_documento', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -786,24 +889,44 @@ export default function Index({
                                         <option value="Otro">Otro</option>
                                     </select>
                                 </div>
-
+                                
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        ¿Emite Factura?
+                                        ¿Emite Factura? <span className="text-cyan-400">*</span>
                                     </label>
                                     <select
-                                        value={createData.emite_factura ? '1' : '0'}
-                                        onChange={(e) => setCreateData('emite_factura', e.target.value === '1')}
+                                        required
+                                        value={createData.emite_factura ? 'true' : 'false'}
+                                        onChange={(e) => setCreateData('emite_factura', e.target.value === 'true')}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                                     >
-                                        <option value="1">Sí, emite factura</option>
-                                        <option value="0">No, es recibo / exento</option>
+                                        <option value="true">Sí (Con Crédito Fiscal)</option>
+                                        <option value="false">No (Sin Factura)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                        Modalidad de Pago <span className="text-cyan-400">*</span>
+                                    </label>
+                                    <select
+                                        required
+                                        value={createData.modalidad_pago}
+                                        onChange={(e) => setCreateData('modalidad_pago', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    >
+                                        <option value="Transferencia">Transferencia Bancaria</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Efectivo">Efectivo / Caja Chica</option>
+                                        <option value="QR">Pago QR</option>
                                     </select>
                                 </div>
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                        Fecha de Solicitud
+                                        Fecha de Solicitud <span className="text-cyan-400">*</span>
                                     </label>
                                     <input
                                         type="date"
@@ -817,31 +940,31 @@ export default function Index({
 
                             <div>
                                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                    Archivo de Respaldo (PDF, JPG, PNG - Máx. 5MB)
+                                    Documento / Proforma de Respaldo (PDF, JPG, PNG)
                                 </label>
                                 <input
                                     type="file"
                                     accept=".pdf,.jpg,.jpeg,.png"
                                     onChange={(e) => setCreateData('archivo_respaldo', e.target.files[0])}
-                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs focus:ring-2 focus:ring-emerald-500 outline-none file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => setShowCreateModal(false)}
-                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={createProcessing}
-                                    className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2"
+                                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5 disabled:opacity-50"
                                 >
                                     <Send className="w-4 h-4" />
-                                    <span>{createProcessing ? 'Registrando...' : 'Emitir & Aprobar Solicitud'}</span>
+                                    <span>{createProcessing ? 'Enviando...' : 'Emitir Solicitud'}</span>
                                 </button>
                             </div>
                         </form>
@@ -849,10 +972,10 @@ export default function Index({
                 </div>
             )}
 
-            {/* MODAL EDITAR / SUBSANAR SOLICITUD DE JEFATURA */}
+            {/* MODAL EDITAR / SUBSANAR SOLICITUD */}
             {showEditModal && selectedSolicitud && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl my-8 relative">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-5xl xl:max-w-6xl w-full shadow-2xl my-8 relative max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                             <div>
                                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -860,7 +983,7 @@ export default function Index({
                                     <span>Editar / Subsanar Solicitud #{selectedSolicitud.id}</span>
                                 </h3>
                                 <p className="text-xs text-slate-400 mt-0.5">
-                                    Corrige los datos u observaciones emitidas por Contabilidad y reenvía a pago.
+                                    Corrige los datos u observaciones emitidas por Contabilidad o Gerencia y reenvía a revisión.
                                 </p>
                             </div>
                             <button
@@ -872,67 +995,86 @@ export default function Index({
                         </div>
 
                         <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-300 mb-1">Empresa</label>
                                     <select
                                         required
                                         value={editData.empresa_id}
-                                        onChange={(e) => setEditData('empresa_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                                        onChange={(e) => handleEditEmpresaChange(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-xl bg-slate-950 border ${getEmpresaColorInfo(editData.empresa_id).borderClass} text-xs focus:ring-2 outline-none font-bold ${getEmpresaColorInfo(editData.empresa_id).textColor}`}
+                                        style={{ color: getEmpresaColorInfo(editData.empresa_id).hexColor }}
                                     >
-                                        {empresas.map((emp) => (
-                                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                                        ))}
+                                        {empresas.map((emp) => {
+                                            const itemColor = getEmpresaColorInfo(emp);
+                                            return (
+                                                <option
+                                                    key={emp.id}
+                                                    value={emp.id}
+                                                    style={{
+                                                        color: itemColor.hexColor,
+                                                        backgroundColor: '#020617',
+                                                        fontWeight: '700',
+                                                    }}
+                                                >
+                                                    {emp.nombre}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
+                                    {getSolicitanteEmail(editData.empresa_id) && (
+                                        <p className={`text-[10px] ${getEmpresaColorInfo(editData.empresa_id).textColor} mt-1 font-mono`}>
+                                            Origen: <strong>{getSolicitanteEmail(editData.empresa_id)}</strong>
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Solicitud</label>
-                                    <select
-                                        required
-                                        value={editData.tipo_solicitud}
-                                        onChange={(e) => setEditData('tipo_solicitud', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                    >
-                                        <option value="Pago a Proveedor">Pago a Proveedor (Regular)</option>
-                                        <option value="Caja Chica">Caja Chica (Gastos Menores ≤ 300 BOB)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">Encargado Contabilidad</label>
-                                    <select
-                                        required
-                                        value={editData.contabilidad_id}
-                                        onChange={(e) => setEditData('contabilidad_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none font-semibold text-amber-300"
-                                    >
-                                        <option value="">Selecciona Contabilidad...</option>
-                                        {getFilteredContabilidades(editData.empresa_id, editData.tipo_solicitud, editData.monto, editData.moneda).map((c) => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.nombre_completo} ({c.rol?.nombre === 'Caja Chica' ? '🪙 Encargada Caja Chica Fralak' : (c.cargo || c.rol?.nombre || 'Contabilidad')})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <JefeMultiSelect
+                                        jefes={jefes}
+                                        empresaId={editData.empresa_id}
+                                        selectedIds={editData.jefe_ids || []}
+                                        onChange={(ids) => setEditData((prev) => ({
+                                            ...prev,
+                                            jefe_ids: ids,
+                                            jefe_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        excludeUserId={authUser?.id}
+                                        label={isEduardo ? "Gerente Aprobador" : "Jefe / Gerente Aprobador"}
+                                    />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">Proveedor / Beneficiario</label>
-                                    <select
-                                        required
-                                        value={editData.proveedor_id}
-                                        onChange={(e) => setEditData('proveedor_id', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                                    >
-                                        {proveedores.map((prov) => (
-                                            <option key={prov.id} value={prov.id}>
-                                                {prov.nombre_razon_social}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <ContabilidadMultiSelect
+                                        contabilidades={contabilidades}
+                                        empresaId={editData.empresa_id}
+                                        tipoSol={editData.tipo_solicitud}
+                                        monto={editData.monto}
+                                        moneda={editData.moneda}
+                                        selectedIds={editData.contabilidad_ids || []}
+                                        onChange={(ids) => setEditData((prev) => ({
+                                            ...prev,
+                                            contabilidad_ids: ids,
+                                        contabilidad_id: ids.length > 0 ? ids[0] : '',
+                                        }))}
+                                        empresas={empresas}
+                                        label="Encargado Contabilidad"
+                                    />
+                                </div>
+
+                                <div>
+                                    <ProveedorSearchSelect
+                                        proveedores={proveedores}
+                                        selectedId={editData.proveedor_id}
+                                        onChange={(id) => setEditData('proveedor_id', id)}
+                                        onOpenQuickCreate={(prefill) => {
+                                            resetProv();
+                                            if (prefill) setProvData('nombre_razon_social', prefill);
+                                            setShowQuickProvModal(true);
+                                        }}
+                                        label="Proveedor / Beneficiario"
+                                    />
                                 </div>
                             </div>
 
@@ -1011,12 +1153,17 @@ export default function Index({
             {/* MODAL REGISTRAR PROVEEDOR RÁPIDO */}
             {showQuickProvModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative my-8">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                            <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                <Truck className="w-5 h-5 text-indigo-400" />
-                                <span>Registrar Nuevo Proveedor / Beneficiario</span>
-                            </h3>
+                            <div>
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Truck className="w-5 h-5 text-indigo-400" />
+                                    <span>Registrar Nuevo Proveedor</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Guarda el proveedor para seleccionarlo en tus solicitudes
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowQuickProvModal(false)}
                                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -1028,38 +1175,53 @@ export default function Index({
                         <form onSubmit={handleQuickProvSubmit} className="space-y-3 text-xs">
                             <div>
                                 <label className="block font-semibold text-slate-300 mb-1">
-                                    Nombre o Razón Social <span className="text-indigo-400">*</span>
+                                    Nombre / Razón Social <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Ej: Distribuidora Médica S.A."
+                                    placeholder="Ej: Distribuidora Médica Santa Cruz SRL"
                                     value={provData.nombre_razon_social}
                                     onChange={(e) => setProvData('nombre_razon_social', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {provErrors.nombre_razon_social && <p className="text-rose-400 text-[11px] mt-1">{provErrors.nombre_razon_social}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block font-semibold text-slate-300 mb-1">Descripción / Rubro (Opcional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Insumos de laboratorio / Mantenimiento"
+                                    value={provData.descripcion}
+                                    onChange={(e) => setProvData('descripcion', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                                {provErrors.descripcion && <p className="text-rose-400 text-[11px] mt-1">{provErrors.descripcion}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI</label>
+                                    <label className="block font-semibold text-slate-300 mb-1">NIT / CI (Opcional)</label>
                                     <input
                                         type="text"
-                                        placeholder="Ej: 1029384019"
+                                        placeholder="Ej: 1029384756"
                                         value={provData.nit_ci}
                                         onChange={(e) => setProvData('nit_ci', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {provErrors.nit_ci && <p className="text-rose-400 text-[11px] mt-1">{provErrors.nit_ci}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Banco</label>
                                     <input
                                         type="text"
-                                        placeholder="Ej: Banco Bisa / BNB"
+                                        placeholder="Ej: BCP / Bisa"
                                         value={provData.banco}
                                         onChange={(e) => setProvData('banco', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     />
+                                    {provErrors.banco && <p className="text-rose-400 text-[11px] mt-1">{provErrors.banco}</p>}
                                 </div>
                             </div>
 
@@ -1075,6 +1237,7 @@ export default function Index({
                                         <option value="Cuenta Corriente">Cuenta Corriente</option>
                                         <option value="Otro">Otro</option>
                                     </select>
+                                    {provErrors.tipo_cuenta && <p className="text-rose-400 text-[11px] mt-1">{provErrors.tipo_cuenta}</p>}
                                 </div>
                                 <div>
                                     <label className="block font-semibold text-slate-300 mb-1">Nro. de Cuenta</label>
@@ -1085,6 +1248,7 @@ export default function Index({
                                         onChange={(e) => setProvData('numero_cuenta', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                                     />
+                                    {provErrors.numero_cuenta && <p className="text-rose-400 text-[11px] mt-1">{provErrors.numero_cuenta}</p>}
                                 </div>
                             </div>
 
@@ -1097,6 +1261,7 @@ export default function Index({
                                     onChange={(e) => setProvData('nombre_titular_cuenta', e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
+                                {provErrors.nombre_titular_cuenta && <p className="text-rose-400 text-[11px] mt-1">{provErrors.nombre_titular_cuenta}</p>}
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -1110,7 +1275,7 @@ export default function Index({
                                 <button
                                     type="submit"
                                     disabled={provProcessing}
-                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5"
+                                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
                                 >
                                     <Truck className="w-3.5 h-3.5" />
                                     <span>{provProcessing ? 'Guardando...' : 'Guardar Proveedor'}</span>

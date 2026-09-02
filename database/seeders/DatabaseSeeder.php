@@ -150,6 +150,12 @@ class DatabaseSeeder extends Seeder
                             'rol' => 'Solicitante',
                             'cargo' => 'Asistente de Sistemas'
                         ],
+                        'juan carlos mayta lima' => [
+                            'login' => 'contabilidad@cid.com.bo',
+                            'password' => '123456',
+                            'rol' => 'Contabilidad',
+                            'cargo' => 'Contabilidad CID'
+                        ],
                         'maribel caero agreda' => [
                             'login' => 'regente.scz@fralak.com.bo',
                             'password' => 'Fralak1155$',
@@ -245,6 +251,19 @@ class DatabaseSeeder extends Seeder
 
                         $user->empresas()->sync($syncData);
                     }
+
+                    // Usuario Administracion CID
+                    $userAdminCID = User::updateOrCreate(
+                        ['correo' => 'administracion@cid.com.bo'],
+                        [
+                            'rol_id' => $rolesDb['Contabilidad'] ?? 3,
+                            'nombre' => 'Administración',
+                            'apellidos' => 'CID SRL',
+                            'cargo' => 'Administración / Contabilidad CID',
+                            'password' => Hash::make('123456'),
+                        ]
+                    );
+                    $userAdminCID->empresas()->sync([$emp3->id => ['correo_corporativo' => 'administracion@cid.com.bo']]);
                 }
                 $zip->close();
             }
