@@ -86,7 +86,7 @@ class ZohoMailTransport extends AbstractTransport
         if (!empty($bccAddresses)) {
             $payload['bccAddress'] = implode(',', array_filter($bccAddresses));
         }
-        if (!empty($replyTo)) {
+        if (!empty($replyTo) && strtolower(trim($replyTo)) === strtolower(trim($fromAddress))) {
             $payload['replyTo'] = $replyTo;
         }
 

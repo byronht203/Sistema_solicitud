@@ -136,6 +136,24 @@ class SolicitudEstadoMail extends Mailable
     }
 
     /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
+    public function attachments(): array
+    {
+        if ($this->solicitud->archivo_respaldo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->solicitud->archivo_respaldo_path)) {
+            $fullPath = storage_path('app/public/' . $this->solicitud->archivo_respaldo_path);
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+            return [
+                \Illuminate\Mail\Mailables\Attachment::fromPath($fullPath)
+                    ->as("Justificante_Solicitud_{$this->solicitud->id}.{$ext}")
+            ];
+        }
+        return [];
+    }
+
+    /**
      * Helper estático para notificar el cambio de estado por correo a las partes interesadas
      */
     public static function notificarCambioEstado(Solicitud $solicitud)
