@@ -90,21 +90,21 @@ class ZohoMailTransport extends AbstractTransport
             $payload['replyTo'] = $replyTo;
         }
 
-        // Manejo de adjuntos si existen
+        // Manejo de adjuntos si existen (Subida previa al endpoint /messages/attachments de Zoho Mail API)
         $attachments = $email->getAttachments();
         if (!empty($attachments)) {
-            $parts = [];
+            $uploadedParts = [];
             foreach ($attachments as $att) {
                 $body = $att->getBody();
                 $filename = $att->getFilename() ?: 'adjunto';
-                $parts[] = [
-                    'storeName' => $filename,
-                    'attachmentPath' => '',
-                    'content' => base64_encode($body),
-                ];
+                $contentType = $att->getContentType();
+                $uploaded = $this->uploadAttachmentToZoho($accessToken, $filename, $body, $contentType);
+                if ($uploaded) {
+                    $uploadedParts[] = $uploaded;
+                }
             }
-            if (!empty($parts)) {
-                $payload['attachments'] = $parts;
+            if (!empty($uploadedParts)) {
+                $payload['attachments'] = $uploadedParts;
             }
         }
 
@@ -118,7 +118,7 @@ class ZohoMailTransport extends AbstractTransport
             'Content-Type: application/json',
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
@@ -130,6 +130,52 @@ class ZohoMailTransport extends AbstractTransport
         }
 
         Log::info("Correo enviado exitosamente via Zoho Mail API a: " . $payload['toAddress']);
+    }
+
+    /**
+     * Sube un archivo adjunto a Zoho Mail API y retorna la estructura requerida para /messages
+     */
+    protected function uploadAttachmentToZoho(string $accessToken, string $filename, string $fileContent, ?string $contentType = null): ?array
+    {
+        try {
+            $url = rtrim($this->apiDomain, '/') . "/api/accounts/{$this->accountId}/messages/attachments?uploadType=multipart";
+            
+            $tmpFile = tempnam(sys_get_temp_dir(), 'zatt_');
+            file_put_contents($tmpFile, $fileContent);
+
+            $mimeType = $contentType ?: 'application/octet-stream';
+            $curlFile = new \CURLFile($tmpFile, $mimeType, $filename);
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Zoho-oauthtoken ' . $accessToken,
+            ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                'attach' => $curlFile,
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $res = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            @unlink($tmpFile);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                $data = json_decode($res, true);
+                // Zoho retorna: "data": [ { "storeName": "...", "attachmentName": "...", "attachmentPath": "..." } ]
+                if (!empty($data['data']) && is_array($data['data'])) {
+                    return $data['data'][0] ?? null;
+                }
+            } else {
+                Log::warning("No se pudo subir adjunto '$filename' a Zoho Mail API: HTTP $httpCode - $res");
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Excepción subiendo adjunto a Zoho Mail API: " . $e->getMessage());
+        }
+
+        return null;
     }
 
     public function getAccessToken(): ?string

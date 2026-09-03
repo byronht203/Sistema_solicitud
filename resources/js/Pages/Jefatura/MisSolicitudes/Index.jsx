@@ -755,6 +755,17 @@ export default function Index({
                                 </div>
                             )}
 
+                            {Object.keys(createErrors).length > 0 && (
+                                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-300">
+                                    <strong className="block text-rose-200 mb-1">Por favor verifica los siguientes campos:</strong>
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                        {Object.entries(createErrors).map(([field, msg]) => (
+                                            <li key={field}>{msg}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             {/* 4 Columnas: Empresa, Jefe/Gerente Aprobador, Contabilidad, Proveedor */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
