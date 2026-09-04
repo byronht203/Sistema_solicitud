@@ -72,12 +72,12 @@ class SolicitudNuevaMail extends Mailable
             $this->borderColor = '#bfdbfe';
         }
 
-        $logoPath = public_path('images/' . $logoFileName);
-        if (file_exists($logoPath)) {
-            $this->logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
-        } else {
-            $this->logoBase64 = '';
+        $baseUrl = rtrim(config('app.url', 'https://pagos.fralak.com.bo'), '/');
+        if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '127.0.0.1')) {
+            $baseUrl = 'https://pagos.fralak.com.bo';
         }
+        $this->logoUrl = $baseUrl . '/images/' . $logoFileName;
+        $this->logoBase64 = '';
     }
 
     /**
@@ -110,6 +110,7 @@ class SolicitudNuevaMail extends Mailable
                 'urlAprobar' => $this->urlAprobar,
                 'urlRechazar' => $this->urlRechazar,
                 'correoReplyTo' => $this->correoReplyTo,
+                'logoUrl' => $this->logoUrl,
                 'logoBase64' => $this->logoBase64,
                 'headerGradient' => $this->headerGradient,
                 'primaryColor' => $this->primaryColor,

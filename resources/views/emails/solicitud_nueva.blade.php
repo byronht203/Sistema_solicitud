@@ -171,7 +171,11 @@
     <div class="container">
         <!-- Header con Logo Institucional Centrado -->
         <div class="header">
-            @if($logoBase64)
+            @if(!empty($logoUrl))
+                <div class="logo-container">
+                    <img src="{{ $logoUrl }}" alt="{{ $solicitud->empresa ? $solicitud->empresa->nombre : 'Logo Empresa' }}" class="logo-img">
+                </div>
+            @elseif(!empty($logoBase64))
                 <div class="logo-container">
                     <img src="{{ $logoBase64 }}" alt="{{ $solicitud->empresa ? $solicitud->empresa->nombre : 'Logo Empresa' }}" class="logo-img">
                 </div>
